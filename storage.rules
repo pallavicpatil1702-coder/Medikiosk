@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Craft rules based on the provided project ID.
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isPatientOwner(patientId) {
+      return isAuthenticated() && request.auth.uid == patientId;
+    }
+
+    // Reports bucket path
+    match /patients/{patientId}/sessions/{sessionId}/reports/{fileName} {
+      // Patients can upload and read their own reports
+      allow create, update: if isPatientOwner(patientId);
+      allow read: if isPatientOwner(patientId) || isAuthenticated(); // Allow doctors to read
+      allow delete: if isPatientOwner(patientId);
+    }
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

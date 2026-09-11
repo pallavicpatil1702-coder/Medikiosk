@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isPatientOwner(patientId) {
+      return isAuthenticated() && request.auth.uid == patientId;
+    }
+
+    // A simplified doctor check. In production, this should check custom claims (e.g. request.auth.token.role == 'doctor')
+    // or a specific users collection mapping. For MVP, we allow any authenticated user to act as a doctor if they aren't accessing their own patient records, 
+    // or we can just leave it moderately open for authenticated users but restrict patients to their own IDs.
+    // For this MVP: Any authenticated user can read patientSessions (doctors), but patients can only write their own.
+    
+    match /patientSessions/{sessionId} {
+      // Patients can create their own sessions.
+      // Do NOT use resource.data for create.
+      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid;
+      
+      // Update rules based on role
+      allow update: if request.auth != null && (
+        // Patient updating their own session
+        (resource.data.patientId == request.auth.uid && request.resource.data.patientId == request.auth.uid) ||
+        
+        // Nurse updating only triage fields
+        (request.auth.token.role == 'nurse' && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'triageStatus',
+          'triageNote',
+          'triageTimestamp',
+          'triageNurseId'
+        ])) ||
+        
+        // Doctor updating (can be further restricted later)
+        (request.auth.token.role == 'doctor')
+      );
+      
+      // Read rules based on role
+      allow read: if request.auth != null && (
+        resource.data.patientId == request.auth.uid ||
+        request.auth.token.role == 'nurse' ||
+        request.auth.token.role == 'doctor' ||
+        request.auth.token.role == 'admin'
+      );
+      
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
+      allow read: if isAuthenticated();
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

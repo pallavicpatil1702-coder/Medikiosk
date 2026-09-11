@@ -1,0 +1,1210 @@
+{
+  "version": "1.0",
+  "purpose": "MediKiosk pre-consultation structured history-taking",
+  "clinical_status": "Prototype only; clinician validation required before real-patient use",
+  "supported_languages": [
+    "en",
+    "hi",
+    "mr"
+  ],
+  "universal_ayurveda_context": [
+    {
+      "id": "AYU_001",
+      "text": {
+        "en": "Has an Ayurvedic physician assessed your Prakriti before?",
+        "hi": "क्या किसी आयुर्वेद चिकित्सक ने आपकी प्रकृति पहले बताई है?",
+        "mr": "आयुर्वेद चिकित्सकाने तुमची प्रकृती आधी सांगितली आहे का?"
+      },
+      "type": "yes_no",
+      "next": "AYU_002"
+    },
+    {
+      "id": "AYU_002",
+      "text": {
+        "en": "How are your appetite and digestion compared with usual?",
+        "hi": "सामान्य की तुलना में भूख और पाचन कैसे हैं?",
+        "mr": "नेहमीच्या तुलनेत भूक व पचन कसे आहे?"
+      },
+      "type": "free_text",
+      "next": "AYU_003"
+    },
+    {
+      "id": "AYU_003",
+      "text": {
+        "en": "Any change in stool or urine?",
+        "hi": "मल या पेशाब में कोई बदलाव?",
+        "mr": "शौच किंवा लघवीमध्ये काही बदल?"
+      },
+      "type": "free_text",
+      "next": "AYU_004"
+    },
+    {
+      "id": "AYU_004",
+      "text": {
+        "en": "How is your sleep and daily activity?",
+        "hi": "नींद और दैनिक गतिविधि कैसी है?",
+        "mr": "झोप आणि दैनंदिन हालचाल कशी आहे?"
+      },
+      "type": "free_text",
+      "next": "MODULE_END"
+    }
+  ],
+  "modules": {
+    "fever": {
+      "display_name": "Fever / Jwara",
+      "entry_question": "FEV_001",
+      "questions": [
+        {
+          "id": "FEV_001",
+          "text": {
+            "en": "When did the fever start?",
+            "hi": "बुखार कब से है?",
+            "mr": "ताप कधीपासून आहे?"
+          },
+          "type": "duration",
+          "next": "FEV_002"
+        },
+        {
+          "id": "FEV_002",
+          "text": {
+            "en": "Is the fever continuous or does it come and go?",
+            "hi": "बुखार लगातार रहता है या आता-जाता है?",
+            "mr": "ताप सतत असतो का येतो-जातो?"
+          },
+          "type": "single",
+          "options": [
+            "continuous",
+            "comes_and_goes",
+            "not_sure"
+          ],
+          "next": "FEV_003"
+        },
+        {
+          "id": "FEV_003",
+          "text": {
+            "en": "Have you measured your temperature?",
+            "hi": "क्या आपने तापमान मापा है?",
+            "mr": "तुम्ही तापमान मोजले आहे का?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "FEV_004",
+            "no": "FEV_005"
+          }
+        },
+        {
+          "id": "FEV_004",
+          "text": {
+            "en": "What was the highest temperature recorded?",
+            "hi": "सबसे अधिक तापमान कितना था?",
+            "mr": "सर्वाधिक तापमान किती होते?"
+          },
+          "type": "number",
+          "next": "FEV_005"
+        },
+        {
+          "id": "FEV_005",
+          "text": {
+            "en": "Do you have chills/shivering, sweating, body ache or weakness?",
+            "hi": "क्या ठंड लगना/कंपकंपी, पसीना, बदन दर्द या कमजोरी है?",
+            "mr": "थंडी वाजणे/कापरे, घाम, अंगदुखी किंवा अशक्तपणा आहे का?"
+          },
+          "type": "yes_no",
+          "next": "FEV_006"
+        },
+        {
+          "id": "FEV_006",
+          "text": {
+            "en": "Do you have cough, sore throat, vomiting, diarrhea, or burning while urinating?",
+            "hi": "क्या खांसी, गले में दर्द, उल्टी, दस्त या पेशाब में जलन है?",
+            "mr": "खोकला, घसा दुखणे, उलटी, जुलाब किंवा लघवीत जळजळ आहे का?"
+          },
+          "type": "multi_choice",
+          "next": "FEV_007"
+        },
+        {
+          "id": "FEV_007",
+          "text": {
+            "en": "How are your appetite, thirst, sleep and bowel habits compared with usual?",
+            "hi": "सामान्य की तुलना में भूख, प्यास, नींद और मल त्याग कैसे हैं?",
+            "mr": "नेहमीच्या तुलनेत भूक, तहान, झोप आणि शौच कसे आहे?"
+          },
+          "type": "free_text",
+          "next": "FEV_008"
+        },
+        {
+          "id": "FEV_008",
+          "text": {
+            "en": "Have you taken any medicine or home remedy for this episode?",
+            "hi": "क्या आपने इस बार कोई दवा या घरेलू उपाय लिया है?",
+            "mr": "या वेळी औषध किंवा घरगुती उपाय घेतला आहे का?"
+          },
+          "type": "free_text",
+          "next": "FEV_009"
+        },
+        {
+          "id": "FEV_009",
+          "text": {
+            "en": "Are you severely breathless, confused, fainting, having a seizure, or very difficult to wake?",
+            "hi": "क्या बहुत सांस की तकलीफ, भ्रम, बेहोशी, दौरा या जगाने में बहुत कठिनाई है?",
+            "mr": "खूप श्वास घेण्यास त्रास, गोंधळ, बेशुद्धी, आकडी किंवा जागे करणे कठीण आहे का?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "cough": {
+      "display_name": "Cough / Kasa",
+      "entry_question": "COU_001",
+      "questions": [
+        {
+          "id": "COU_001",
+          "text": {
+            "en": "When did the cough start?",
+            "hi": "खांसी कब से है?",
+            "mr": "खोकला कधीपासून आहे?"
+          },
+          "type": "duration",
+          "next": "COU_002"
+        },
+        {
+          "id": "COU_002",
+          "text": {
+            "en": "Is it dry or with phlegm?",
+            "hi": "खांसी सूखी है या बलगम के साथ है?",
+            "mr": "खोकला कोरडा आहे का कफासह आहे?"
+          },
+          "type": "single",
+          "next": "COU_003"
+        },
+        {
+          "id": "COU_003",
+          "text": {
+            "en": "If phlegm is present, what is its color?",
+            "hi": "अगर बलगम है तो उसका रंग क्या है?",
+            "mr": "कफ असल्यास त्याचा रंग काय आहे?"
+          },
+          "type": "single",
+          "next": "COU_004"
+        },
+        {
+          "id": "COU_004",
+          "text": {
+            "en": "Do you have fever, sore throat, wheezing or breathlessness?",
+            "hi": "क्या बुखार, गले में दर्द, घरघर या सांस फूलना है?",
+            "mr": "ताप, घसा दुखणे, घरघर किंवा धाप लागणे आहे का?"
+          },
+          "type": "multi_choice",
+          "next": "COU_005"
+        },
+        {
+          "id": "COU_005",
+          "text": {
+            "en": "Do you smoke/use tobacco or have dust/smoke exposure?",
+            "hi": "क्या आप धूम्रपान/तंबाकू करते हैं या धूल/धुएँ के संपर्क में हैं?",
+            "mr": "तुम्ही धूम्रपान/तंबाखू करता का किंवा धूळ/धुराच्या संपर्कात असता का?"
+          },
+          "type": "yes_no",
+          "next": "COU_006"
+        },
+        {
+          "id": "COU_006",
+          "text": {
+            "en": "Any asthma, allergy, TB exposure, or chronic lung disease history?",
+            "hi": "क्या अस्थमा, एलर्जी, टीबी संपर्क या पुरानी फेफड़ों की बीमारी का इतिहास है?",
+            "mr": "अस्थमा, अॅलर्जी, टीबी संपर्क किंवा फुफ्फुसांच्या जुन्या आजाराचा इतिहास आहे का?"
+          },
+          "type": "yes_no",
+          "next": "COU_007"
+        },
+        {
+          "id": "COU_007",
+          "text": {
+            "en": "How are appetite, digestion, sleep and bowel habits?",
+            "hi": "भूख, पाचन, नींद और मल त्याग कैसा है?",
+            "mr": "भूक, पचन, झोप आणि शौच कसे आहे?"
+          },
+          "type": "free_text",
+          "next": "COU_008"
+        },
+        {
+          "id": "COU_008",
+          "text": {
+            "en": "What treatment have you already tried?",
+            "hi": "आपने कौन-सा इलाज पहले से लिया है?",
+            "mr": "तुम्ही आधी कोणता उपचार घेतला आहे?"
+          },
+          "type": "free_text",
+          "next": "COU_009"
+        },
+        {
+          "id": "COU_009",
+          "text": {
+            "en": "Are you coughing significant blood or having severe breathing difficulty?",
+            "hi": "क्या खांसी में काफी खून या बहुत ज्यादा सांस फूलना है?",
+            "mr": "खोकल्यातून लक्षणीय रक्त किंवा खूप धाप लागते का?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "abdominal_pain": {
+      "display_name": "Abdominal Pain",
+      "entry_question": "ABD_001",
+      "questions": [
+        {
+          "id": "ABD_001",
+          "text": {
+            "en": "Where is the pain?",
+            "hi": "दर्द कहाँ है?",
+            "mr": "वेदना कुठे आहे?"
+          },
+          "type": "single",
+          "next": "ABD_002"
+        },
+        {
+          "id": "ABD_002",
+          "text": {
+            "en": "When did the pain start?",
+            "hi": "दर्द कब शुरू हुआ?",
+            "mr": "वेदना कधी सुरू झाली?"
+          },
+          "type": "duration",
+          "next": "ABD_003"
+        },
+        {
+          "id": "ABD_003",
+          "text": {
+            "en": "Did it start suddenly or gradually?",
+            "hi": "अचानक या धीरे शुरू हुआ?",
+            "mr": "अचानक की हळूहळू सुरू झाली?"
+          },
+          "type": "single",
+          "next": "ABD_004"
+        },
+        {
+          "id": "ABD_004",
+          "text": {
+            "en": "Rate the pain from 0 to 10.",
+            "hi": "दर्द 0 से 10 तक बताएं।",
+            "mr": "वेदना 0 ते 10 मध्ये सांगा."
+          },
+          "type": "scale",
+          "next": "ABD_005"
+        },
+        {
+          "id": "ABD_005",
+          "text": {
+            "en": "How would you describe the pain?",
+            "hi": "दर्द कैसा है?",
+            "mr": "वेदना कशी आहे?"
+          },
+          "type": "multi_choice",
+          "next": "ABD_006"
+        },
+        {
+          "id": "ABD_006",
+          "text": {
+            "en": "Do you have nausea or vomiting?",
+            "hi": "क्या मितली या उल्टी है?",
+            "mr": "मळमळ किंवा उलटी आहे का?"
+          },
+          "type": "yes_no",
+          "next": "ABD_007"
+        },
+        {
+          "id": "ABD_007",
+          "text": {
+            "en": "Diarrhea or constipation?",
+            "hi": "दस्त या कब्ज?",
+            "mr": "जुलाब किंवा बद्धकोष्ठता?"
+          },
+          "type": "single",
+          "next": "ABD_008"
+        },
+        {
+          "id": "ABD_008",
+          "text": {
+            "en": "Any blood in vomit/stool or black stool?",
+            "hi": "उल्टी/मल में खून या काला मल?",
+            "mr": "उलटी/शौचात रक्त किंवा काळे शौच?"
+          },
+          "type": "yes_no",
+          "next": "ABD_009"
+        },
+        {
+          "id": "ABD_009",
+          "text": {
+            "en": "Any burning urination or blood in urine?",
+            "hi": "पेशाब में जलन या खून?",
+            "mr": "लघवीत जळजळ किंवा रक्त?"
+          },
+          "type": "yes_no",
+          "next": "ABD_010"
+        },
+        {
+          "id": "ABD_010",
+          "text": {
+            "en": "Could you be pregnant?",
+            "hi": "क्या गर्भावस्था की संभावना है?",
+            "mr": "गर्भधारणेची शक्यता आहे का?"
+          },
+          "type": "yes_no_na",
+          "next": "ABD_011"
+        },
+        {
+          "id": "ABD_011",
+          "text": {
+            "en": "Is the pain extremely severe, rapidly worsening, or associated with fainting/confusion?",
+            "hi": "क्या दर्द बहुत तेज/बढ़ता हुआ है या बेहोशी/भ्रम है?",
+            "mr": "वेदना खूप तीव्र/वाढती आहे किंवा बेशुद्धी/गोंधळ आहे का?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "chest_pain": {
+      "display_name": "Chest Pain",
+      "entry_question": "CHE_001",
+      "questions": [
+        {
+          "id": "CHE_001",
+          "text": {
+            "en": "When did the chest pain start?",
+            "hi": "सीने का दर्द कब शुरू हुआ?",
+            "mr": "छातीतील वेदना कधी सुरू झाली?"
+          },
+          "type": "duration",
+          "next": "CHE_002"
+        },
+        {
+          "id": "CHE_002",
+          "text": {
+            "en": "Rate the pain from 0 to 10.",
+            "hi": "दर्द 0 से 10 तक बताएं।",
+            "mr": "वेदना 0 ते 10 मध्ये सांगा."
+          },
+          "type": "scale",
+          "next": "CHE_003"
+        },
+        {
+          "id": "CHE_003",
+          "text": {
+            "en": "How would you describe it: pressure, tightness, sharp, burning?",
+            "hi": "दबाव, जकड़न, चुभन या जलन?",
+            "mr": "दाब, घट्टपणा, टोचणे किंवा जळजळ?"
+          },
+          "type": "multi_choice",
+          "next": "CHE_004"
+        },
+        {
+          "id": "CHE_004",
+          "text": {
+            "en": "Does it spread to the arm, jaw, neck or back?",
+            "hi": "क्या दर्द हाथ, जबड़े, गर्दन या पीठ तक जाता है?",
+            "mr": "वेदना हात, जबडा, मान किंवा पाठीकडे जाते का?"
+          },
+          "type": "yes_no",
+          "next": "CHE_005"
+        },
+        {
+          "id": "CHE_005",
+          "text": {
+            "en": "Did it start/worsen with physical activity?",
+            "hi": "क्या गतिविधि से शुरू/बढ़ता है?",
+            "mr": "हालचालीने सुरू/वाढते का?"
+          },
+          "type": "yes_no",
+          "next": "CHE_006"
+        },
+        {
+          "id": "CHE_006",
+          "text": {
+            "en": "Do you have shortness of breath?",
+            "hi": "क्या सांस फूलती है?",
+            "mr": "धाप लागते का?"
+          },
+          "type": "yes_no",
+          "next": "CHE_007"
+        },
+        {
+          "id": "CHE_007",
+          "text": {
+            "en": "Sweating, nausea/vomiting, dizziness or fainting?",
+            "hi": "पसीना, मितली/उल्टी, चक्कर या बेहोशी?",
+            "mr": "घाम, मळमळ/उलटी, चक्कर किंवा बेशुद्धी?"
+          },
+          "type": "multi_choice",
+          "next": "CHE_008"
+        },
+        {
+          "id": "CHE_008",
+          "text": {
+            "en": "Any heart disease, diabetes, high BP, high cholesterol or tobacco use?",
+            "hi": "हृदय रोग, मधुमेह, BP, कोलेस्ट्रॉल या तंबाकू का इतिहास?",
+            "mr": "हृदयरोग, मधुमेह, BP, कोलेस्ट्रॉल किंवा तंबाखूचा इतिहास?"
+          },
+          "type": "multi_choice",
+          "next": "CHE_009"
+        },
+        {
+          "id": "CHE_009",
+          "text": {
+            "en": "Is the pain severe/persistent or associated with severe breathlessness, fainting or marked sweating?",
+            "hi": "क्या दर्द तेज/लगातार है या गंभीर सांस फूलना/बेहोशी/बहुत पसीना है?",
+            "mr": "वेदना तीव्र/सतत आहे किंवा तीव्र धाप/बेशुद्धी/जास्त घाम आहे का?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "headache": {
+      "display_name": "Headache / Shirashoola",
+      "entry_question": "HED_001",
+      "questions": [
+        {
+          "id": "HED_001",
+          "text": {
+            "en": "When did the headache begin?",
+            "hi": "सिरदर्द कब शुरू हुआ?",
+            "mr": "डोकेदुखी कधी सुरू झाली?"
+          },
+          "type": "duration",
+          "next": "HED_002"
+        },
+        {
+          "id": "HED_002",
+          "text": {
+            "en": "Did it reach maximum intensity suddenly?",
+            "hi": "क्या दर्द अचानक बहुत तेज हो गया?",
+            "mr": "वेदना अचानक खूप तीव्र झाली का?"
+          },
+          "type": "yes_no",
+          "next": "HED_003"
+        },
+        {
+          "id": "HED_003",
+          "text": {
+            "en": "Where is the headache?",
+            "hi": "सिरदर्द कहाँ है?",
+            "mr": "डोकेदुखी कुठे आहे?"
+          },
+          "type": "single",
+          "next": "HED_004"
+        },
+        {
+          "id": "HED_004",
+          "text": {
+            "en": "How would you describe it?",
+            "hi": "दर्द कैसा है?",
+            "mr": "वेदना कशी आहे?"
+          },
+          "type": "single",
+          "next": "HED_005"
+        },
+        {
+          "id": "HED_005",
+          "text": {
+            "en": "Rate it from 0 to 10.",
+            "hi": "0 से 10 तक बताएं।",
+            "mr": "0 ते 10 मध्ये सांगा."
+          },
+          "type": "scale",
+          "next": "HED_006"
+        },
+        {
+          "id": "HED_006",
+          "text": {
+            "en": "Nausea, vomiting, light/sound sensitivity, fever or neck stiffness?",
+            "hi": "मितली, उल्टी, रोशनी/आवाज़ से परेशानी, बुखार या गर्दन अकड़ना?",
+            "mr": "मळमळ, उलटी, प्रकाश/आवाज त्रास, ताप किंवा मान आखडणे?"
+          },
+          "type": "multi_choice",
+          "next": "HED_007"
+        },
+        {
+          "id": "HED_007",
+          "text": {
+            "en": "Any weakness, numbness, speech difficulty, confusion or new vision problem?",
+            "hi": "कमजोरी, सुन्नपन, बोलने में दिक्कत, भ्रम या नई दृष्टि समस्या?",
+            "mr": "अशक्तपणा, बधिरपणा, बोलण्यात अडचण, गोंधळ किंवा नवीन दृष्टी समस्या?"
+          },
+          "type": "multi_choice",
+          "next": "HED_008"
+        },
+        {
+          "id": "HED_008",
+          "text": {
+            "en": "Does it relate to sleep loss, fasting, stress, heat or a particular food?",
+            "hi": "क्या नींद की कमी, उपवास, तनाव, गर्मी या भोजन से संबंध है?",
+            "mr": "झोपेची कमतरता, उपवास, ताण, उष्णता किंवा अन्नाशी संबंध आहे का?"
+          },
+          "type": "multi_choice",
+          "next": "HED_009"
+        },
+        {
+          "id": "HED_009",
+          "text": {
+            "en": "Recent head injury, fever with stiff neck, seizure, fainting or rapidly worsening headache?",
+            "hi": "हाल की सिर की चोट, गर्दन अकड़ने के साथ बुखार, दौरा, बेहोशी या तेजी से बढ़ता दर्द?",
+            "mr": "अलीकडील डोक्याची दुखापत, मान आखडून ताप, आकडी, बेशुद्धी किंवा वाढती डोकेदुखी?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "vomiting_diarrhea": {
+      "display_name": "Vomiting / Diarrhea",
+      "entry_question": "GI_001",
+      "questions": [
+        {
+          "id": "GI_001",
+          "text": {
+            "en": "Which problem is present: vomiting, diarrhea, or both?",
+            "hi": "उल्टी, दस्त या दोनों?",
+            "mr": "उलटी, जुलाब किंवा दोन्ही?"
+          },
+          "type": "single",
+          "next": "GI_002"
+        },
+        {
+          "id": "GI_002",
+          "text": {
+            "en": "When did it start?",
+            "hi": "कब शुरू हुआ?",
+            "mr": "कधी सुरू झाले?"
+          },
+          "type": "duration",
+          "next": "GI_003"
+        },
+        {
+          "id": "GI_003",
+          "text": {
+            "en": "How many episodes in the last 24 hours?",
+            "hi": "पिछले 24 घंटे में कितनी बार?",
+            "mr": "गेल्या २४ तासांत किती वेळा?"
+          },
+          "type": "number",
+          "next": "GI_004"
+        },
+        {
+          "id": "GI_004",
+          "text": {
+            "en": "Blood/black stool or blood in vomit?",
+            "hi": "खून/काला मल या उल्टी में खून?",
+            "mr": "रक्त/काळे शौच किंवा उलटीत रक्त?"
+          },
+          "type": "yes_no",
+          "next": "GI_005"
+        },
+        {
+          "id": "GI_005",
+          "text": {
+            "en": "Can you keep fluids down?",
+            "hi": "क्या पानी/द्रव रख पा रहे हैं?",
+            "mr": "द्रवपदार्थ टिकवून ठेवता येतात का?"
+          },
+          "type": "yes_no",
+          "next": "GI_006"
+        },
+        {
+          "id": "GI_006",
+          "text": {
+            "en": "Much less urine, severe dizziness/fainting, or inability to drink?",
+            "hi": "बहुत कम पेशाब, तेज चक्कर/बेहोशी या पानी न पी पाना?",
+            "mr": "खूप कमी लघवी, तीव्र चक्कर/बेशुद्धी किंवा पाणी न घेता येणे?"
+          },
+          "type": "yes_no",
+          "next": "GI_007"
+        },
+        {
+          "id": "GI_007",
+          "text": {
+            "en": "Fever or significant abdominal pain?",
+            "hi": "बुखार या तेज पेट दर्द?",
+            "mr": "ताप किंवा तीव्र पोटदुखी?"
+          },
+          "type": "yes_no",
+          "next": "GI_008"
+        },
+        {
+          "id": "GI_008",
+          "text": {
+            "en": "Recent suspicious food/water exposure or sick contact?",
+            "hi": "संदिग्ध खाना/पानी या बीमार व्यक्ति का संपर्क?",
+            "mr": "संशयास्पद अन्न/पाणी किंवा आजारी व्यक्तीचा संपर्क?"
+          },
+          "type": "yes_no",
+          "next": "GI_009"
+        },
+        {
+          "id": "GI_009",
+          "text": {
+            "en": "Recent antibiotic or new medicine?",
+            "hi": "हाल में एंटीबायोटिक या नई दवा?",
+            "mr": "अलीकडे अँटिबायोटिक किंवा नवीन औषध?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "breathlessness": {
+      "display_name": "Breathlessness / Shwasa-type presentation",
+      "entry_question": "BRE_001",
+      "questions": [
+        {
+          "id": "BRE_001",
+          "text": {
+            "en": "When did breathing difficulty start?",
+            "hi": "सांस की तकलीफ कब शुरू हुई?",
+            "mr": "श्वास घेण्याचा त्रास कधी सुरू झाला?"
+          },
+          "type": "duration",
+          "next": "BRE_002"
+        },
+        {
+          "id": "BRE_002",
+          "text": {
+            "en": "At rest or with activity?",
+            "hi": "आराम में या गतिविधि में?",
+            "mr": "विश्रांतीत की हालचालीने?"
+          },
+          "type": "single",
+          "next": "BRE_003"
+        },
+        {
+          "id": "BRE_003",
+          "text": {
+            "en": "Did it start suddenly?",
+            "hi": "क्या अचानक शुरू हुआ?",
+            "mr": "अचानक सुरू झाला का?"
+          },
+          "type": "yes_no",
+          "next": "BRE_004"
+        },
+        {
+          "id": "BRE_004",
+          "text": {
+            "en": "Chest pain/pressure?",
+            "hi": "सीने में दर्द/दबाव?",
+            "mr": "छातीत वेदना/दाब?"
+          },
+          "type": "yes_no",
+          "next": "BRE_005"
+        },
+        {
+          "id": "BRE_005",
+          "text": {
+            "en": "Cough, wheezing or fever?",
+            "hi": "खांसी, घरघर या बुखार?",
+            "mr": "खोकला, घरघर किंवा ताप?"
+          },
+          "type": "multi_choice",
+          "next": "BRE_006"
+        },
+        {
+          "id": "BRE_006",
+          "text": {
+            "en": "Asthma/COPD/heart disease or other known condition?",
+            "hi": "अस्थमा/COPD/हृदय रोग या अन्य ज्ञात बीमारी?",
+            "mr": "अस्थमा/COPD/हृदयरोग किंवा इतर आजार?"
+          },
+          "type": "yes_no",
+          "next": "BRE_007"
+        },
+        {
+          "id": "BRE_007",
+          "text": {
+            "en": "Started after exercise, allergen, new medicine or choking?",
+            "hi": "व्यायाम, एलर्जी, नई दवा या choking के बाद?",
+            "mr": "व्यायाम, अॅलर्जन, नवीन औषध किंवा काही अडकल्यानंतर?"
+          },
+          "type": "multi_choice",
+          "next": "BRE_008"
+        },
+        {
+          "id": "BRE_008",
+          "text": {
+            "en": "Smoke/tobacco exposure?",
+            "hi": "धूम्रपान/तंबाकू का संपर्क?",
+            "mr": "धूम्रपान/तंबाखूचा संपर्क?"
+          },
+          "type": "yes_no",
+          "next": "BRE_009"
+        },
+        {
+          "id": "BRE_009",
+          "text": {
+            "en": "Unable to speak full sentences, blue/grey lips, fainting or rapidly worsening breathing?",
+            "hi": "पूरे वाक्य न बोल पाना, होंठ नीले/धूसर, बेहोशी या तेजी से बिगड़ती सांस?",
+            "mr": "पूर्ण वाक्य बोलता न येणे, ओठ निळे/करडे, बेशुद्धी किंवा झपाट्याने वाढणारा श्वासाचा त्रास?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "weakness_fatigue": {
+      "display_name": "Weakness / Fatigue",
+      "entry_question": "WEA_001",
+      "questions": [
+        {
+          "id": "WEA_001",
+          "text": {
+            "en": "When did the weakness/fatigue start?",
+            "hi": "कमजोरी/थकान कब शुरू हुई?",
+            "mr": "अशक्तपणा/थकवा कधी सुरू झाला?"
+          },
+          "type": "duration",
+          "next": "WEA_002"
+        },
+        {
+          "id": "WEA_002",
+          "text": {
+            "en": "Constant or comes and goes?",
+            "hi": "लगातार या आता-जाता?",
+            "mr": "सतत की येतो-जातो?"
+          },
+          "type": "single",
+          "next": "WEA_003"
+        },
+        {
+          "id": "WEA_003",
+          "text": {
+            "en": "Does it affect usual daily activities?",
+            "hi": "क्या रोज़मर्रा के काम प्रभावित हैं?",
+            "mr": "दैनंदिन कामांवर परिणाम होतो का?"
+          },
+          "type": "yes_no",
+          "next": "WEA_004"
+        },
+        {
+          "id": "WEA_004",
+          "text": {
+            "en": "Fever, unexplained weight loss or night sweats?",
+            "hi": "बुखार, बिना कारण वजन कम होना या रात में पसीना?",
+            "mr": "ताप, कारण नसताना वजन कमी होणे किंवा रात्री घाम?"
+          },
+          "type": "multi_choice",
+          "next": "WEA_005"
+        },
+        {
+          "id": "WEA_005",
+          "text": {
+            "en": "Breathlessness, chest pain, palpitations or dizziness?",
+            "hi": "सांस फूलना, सीने में दर्द, धड़कन या चक्कर?",
+            "mr": "धाप, छातीत वेदना, धडधड किंवा चक्कर?"
+          },
+          "type": "multi_choice",
+          "next": "WEA_006"
+        },
+        {
+          "id": "WEA_006",
+          "text": {
+            "en": "One-sided weakness or new speech/walking/vision problem?",
+            "hi": "एक तरफ कमजोरी या बोलने/चलने/देखने में नई समस्या?",
+            "mr": "एका बाजूचा अशक्तपणा किंवा बोलणे/चालणे/दृष्टीची नवीन समस्या?"
+          },
+          "type": "multi_choice",
+          "next": "WEA_007"
+        },
+        {
+          "id": "WEA_007",
+          "text": {
+            "en": "Major change in sleep, appetite or food intake?",
+            "hi": "नींद, भूख या भोजन में बड़ा बदलाव?",
+            "mr": "झोप, भूक किंवा आहारात मोठा बदल?"
+          },
+          "type": "multi_choice",
+          "next": "WEA_008"
+        },
+        {
+          "id": "WEA_008",
+          "text": {
+            "en": "Known anemia, thyroid disease, diabetes, heart/lung disease or other chronic illness?",
+            "hi": "एनीमिया, थायरॉइड, मधुमेह, हृदय/फेफड़े की बीमारी या अन्य पुराना रोग?",
+            "mr": "अॅनिमिया, थायरॉइड, मधुमेह, हृदय/फुफ्फुसांचा आजार किंवा इतर दीर्घकालीन आजार?"
+          },
+          "type": "multi_choice",
+          "next": "WEA_009"
+        },
+        {
+          "id": "WEA_009",
+          "text": {
+            "en": "New or changed medication?",
+            "hi": "नई/बदली हुई दवा?",
+            "mr": "नवीन/बदललेले औषध?"
+          },
+          "type": "yes_no",
+          "next": "WEA_010"
+        },
+        {
+          "id": "WEA_010",
+          "text": {
+            "en": "Fainting, severe confusion, inability to stand/walk normally, or rapid worsening?",
+            "hi": "बेहोशी, बहुत भ्रम, खड़े/चलने में असमर्थता या तेजी से बिगड़ना?",
+            "mr": "बेशुद्धी, तीव्र गोंधळ, उभे/चालता न येणे किंवा झपाट्याने बिघडणे?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "back_pain": {
+      "display_name": "Back Pain / Katishoola",
+      "entry_question": "BAK_001",
+      "questions": [
+        {
+          "id": "BAK_001",
+          "text": {
+            "en": "When did the back pain start?",
+            "hi": "कमर दर्द कब शुरू हुआ?",
+            "mr": "कंबरदुखी कधी सुरू झाली?"
+          },
+          "type": "duration",
+          "next": "BAK_002"
+        },
+        {
+          "id": "BAK_002",
+          "text": {
+            "en": "Where exactly is the pain? Does it spread to the leg?",
+            "hi": "दर्द कहाँ है? क्या पैर तक जाता है?",
+            "mr": "वेदना कुठे आहे? पायाकडे जाते का?"
+          },
+          "type": "free_text",
+          "next": "BAK_003"
+        },
+        {
+          "id": "BAK_003",
+          "text": {
+            "en": "After lifting, bending, exercise, travel or injury?",
+            "hi": "वजन उठाने, झुकने, व्यायाम, यात्रा या चोट के बाद?",
+            "mr": "वजन उचलणे, वाकणे, व्यायाम, प्रवास किंवा दुखापतीनंतर?"
+          },
+          "type": "multi_choice",
+          "next": "BAK_004"
+        },
+        {
+          "id": "BAK_004",
+          "text": {
+            "en": "Rate pain 0–10.",
+            "hi": "दर्द 0–10 बताएं।",
+            "mr": "वेदना 0–10 सांगा."
+          },
+          "type": "scale",
+          "next": "BAK_005"
+        },
+        {
+          "id": "BAK_005",
+          "text": {
+            "en": "Numbness, tingling, weakness or difficulty walking?",
+            "hi": "सुन्नपन, झनझनाहट, कमजोरी या चलने में दिक्कत?",
+            "mr": "बधिरपणा, मुंग्या, अशक्तपणा किंवा चालताना त्रास?"
+          },
+          "type": "multi_choice",
+          "next": "BAK_006"
+        },
+        {
+          "id": "BAK_006",
+          "text": {
+            "en": "New loss of bladder/bowel control or difficulty passing urine?",
+            "hi": "पेशाब/मल पर नया नियंत्रण कम होना या पेशाब में कठिनाई?",
+            "mr": "लघवी/शौचावर नवीन नियंत्रण कमी किंवा लघवीत अडचण?"
+          },
+          "type": "yes_no",
+          "next": "BAK_007"
+        },
+        {
+          "id": "BAK_007",
+          "text": {
+            "en": "Fever, unexplained weight loss or feeling very unwell?",
+            "hi": "बुखार, बिना कारण वजन कम होना या बहुत अस्वस्थ महसूस होना?",
+            "mr": "ताप, कारण नसताना वजन कमी होणे किंवा खूप अस्वस्थ वाटणे?"
+          },
+          "type": "multi_choice",
+          "next": "BAK_008"
+        },
+        {
+          "id": "BAK_008",
+          "text": {
+            "en": "How are sleep, digestion, bowel habits and activity?",
+            "hi": "नींद, पाचन, मल त्याग और गतिविधि कैसी है?",
+            "mr": "झोप, पचन, शौच आणि हालचाल कशी आहे?"
+          },
+          "type": "free_text",
+          "next": "BAK_009"
+        },
+        {
+          "id": "BAK_009",
+          "text": {
+            "en": "What treatment/medicine have you tried?",
+            "hi": "कौन-सा इलाज/दवा ली?",
+            "mr": "कोणता उपचार/औषध घेतले?"
+          },
+          "type": "free_text",
+          "next": "BAK_010"
+        },
+        {
+          "id": "BAK_010",
+          "text": {
+            "en": "Severe weakness, saddle numbness, bladder/bowel change, major trauma or rapidly worsening pain?",
+            "hi": "तेज कमजोरी, जांघों के बीच सुन्नपन, पेशाब/मल की नई समस्या, बड़ी चोट या तेजी से बढ़ता दर्द?",
+            "mr": "तीव्र अशक्तपणा, जांघांमध्ये बधिरपणा, लघवी/शौच बदल, मोठी दुखापत किंवा वाढती वेदना?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    },
+    "joint_pain": {
+      "display_name": "Joint Pain / Sandhivata-type",
+      "entry_question": "JNT_001",
+      "questions": [
+        {
+          "id": "JNT_001",
+          "text": {
+            "en": "When did joint pain start?",
+            "hi": "जोड़ों का दर्द कब शुरू हुआ?",
+            "mr": "सांधेदुखी कधी सुरू झाली?"
+          },
+          "type": "duration",
+          "next": "JNT_002"
+        },
+        {
+          "id": "JNT_002",
+          "text": {
+            "en": "Which joints are affected? One side or both?",
+            "hi": "कौन से जोड़? एक तरफ या दोनों?",
+            "mr": "कोणते सांधे? एक बाजू की दोन्ही?"
+          },
+          "type": "multi_choice",
+          "next": "JNT_003"
+        },
+        {
+          "id": "JNT_003",
+          "text": {
+            "en": "Worse after activity or after prolonged rest?",
+            "hi": "गतिविधि के बाद या लंबे आराम के बाद अधिक?",
+            "mr": "हालचालीनंतर किंवा बराच वेळ विश्रांतीनंतर जास्त?"
+          },
+          "type": "single",
+          "next": "JNT_004"
+        },
+        {
+          "id": "JNT_004",
+          "text": {
+            "en": "Morning stiffness? Approximately how long?",
+            "hi": "सुबह अकड़न? कितनी देर?",
+            "mr": "सकाळी कडकपणा? किती वेळ?"
+          },
+          "type": "duration",
+          "next": "JNT_005"
+        },
+        {
+          "id": "JNT_005",
+          "text": {
+            "en": "Swelling, warmth, redness or reduced movement?",
+            "hi": "सूजन, गर्माहट, लालिमा या कम गति?",
+            "mr": "सूज, उष्णता, लालसरपणा किंवा हालचाल कमी?"
+          },
+          "type": "multi_choice",
+          "next": "JNT_006"
+        },
+        {
+          "id": "JNT_006",
+          "text": {
+            "en": "Fever, weight loss, rash, eye symptoms or marked fatigue?",
+            "hi": "बुखार, वजन कम होना, दाने, आंखों की समस्या या बहुत थकान?",
+            "mr": "ताप, वजन कमी, पुरळ, डोळ्यांची लक्षणे किंवा जास्त थकवा?"
+          },
+          "type": "multi_choice",
+          "next": "JNT_007"
+        },
+        {
+          "id": "JNT_007",
+          "text": {
+            "en": "Any injury or unusual physical strain?",
+            "hi": "चोट या असामान्य शारीरिक मेहनत?",
+            "mr": "दुखापत किंवा जास्त शारीरिक ताण?"
+          },
+          "type": "yes_no",
+          "next": "JNT_008"
+        },
+        {
+          "id": "JNT_008",
+          "text": {
+            "en": "How are appetite, digestion, bowel habits, sleep and activity?",
+            "hi": "भूख, पाचन, मल, नींद और गतिविधि कैसी है?",
+            "mr": "भूक, पचन, शौच, झोप आणि हालचाल कशी आहे?"
+          },
+          "type": "free_text",
+          "next": "JNT_009"
+        },
+        {
+          "id": "JNT_009",
+          "text": {
+            "en": "What medicines/therapies have you tried?",
+            "hi": "कौन-सी दवा/थेरेपी ली?",
+            "mr": "कोणती औषधे/उपचार घेतले?"
+          },
+          "type": "free_text",
+          "next": "JNT_010"
+        },
+        {
+          "id": "JNT_010",
+          "text": {
+            "en": "Very swollen/red/hot joint with high fever, or unable to bear weight after major injury?",
+            "hi": "बहुत सूजा/लाल/गरम जोड़ और तेज बुखार, या बड़ी चोट के बाद वजन न दे पाना?",
+            "mr": "खूप सुजलेला/लाल/गरम सांधा व ताप, किंवा मोठ्या दुखापतीनंतर वजन देता न येणे?"
+          },
+          "type": "yes_no",
+          "branch": {
+            "yes": "URGENT_001",
+            "no": "MODULE_END"
+          },
+          "red_flag": true
+        }
+      ]
+    }
+  },
+  "second_visit": {
+    "common_questions": [
+      {
+        "id": "FU_001",
+        "text": {
+          "en": "Since the last visit, what improved, worsened, or stayed the same?",
+          "hi": "पिछली विज़िट के बाद क्या बेहतर, खराब या वैसा ही रहा?",
+          "mr": "मागील भेटीनंतर काय सुधारले, वाढले किंवा तसेच राहिले?"
+        },
+        "type": "free_text",
+        "next": "FU_002"
+      },
+      {
+        "id": "FU_002",
+        "text": {
+          "en": "Compared with the last visit, how is symptom severity now?",
+          "hi": "पिछली विज़िट की तुलना में अभी लक्षण कितने हैं?",
+          "mr": "मागील भेटीच्या तुलनेत आता लक्षणांची तीव्रता किती आहे?"
+        },
+        "type": "scale_or_text",
+        "next": "FU_003"
+      },
+      {
+        "id": "FU_003",
+        "text": {
+          "en": "Any new symptoms since the last visit?",
+          "hi": "पिछली विज़िट के बाद कोई नया लक्षण?",
+          "mr": "मागील भेटीनंतर नवीन लक्षण?"
+        },
+        "type": "free_text",
+        "next": "FU_004"
+      },
+      {
+        "id": "FU_004",
+        "text": {
+          "en": "Did you take the prescribed medicine/therapy as advised?",
+          "hi": "क्या बताई गई दवा/थेरेपी निर्देशानुसार ली?",
+          "mr": "सांगितलेली औषधे/उपचार निर्देशानुसार घेतले का?"
+        },
+        "type": "yes_no",
+        "next": "FU_005"
+      },
+      {
+        "id": "FU_005",
+        "text": {
+          "en": "Any unwanted effect after treatment?",
+          "hi": "इलाज के बाद कोई अनचाहा प्रभाव?",
+          "mr": "उपचारानंतर अनपेक्षित दुष्परिणाम?"
+        },
+        "type": "free_text",
+        "next": "FU_006"
+      },
+      {
+        "id": "FU_006",
+        "text": {
+          "en": "Were you able to follow advised diet, sleep, exercise or lifestyle changes?",
+          "hi": "क्या बताई गई आहार/नींद/व्यायाम/जीवनशैली का पालन कर पाए?",
+          "mr": "सांगितलेले आहार/झोप/व्यायाम/जीवनशैलीतील बदल पाळता आले का?"
+        },
+        "type": "yes_no",
+        "next": "FU_007"
+      },
+      {
+        "id": "FU_007",
+        "text": {
+          "en": "Any new test, vital measurement, weight, BP, glucose or other relevant result?",
+          "hi": "क्या कोई नई जांच, वजन, BP, ग्लूकोज़ या अन्य माप हुआ?",
+          "mr": "नवीन तपासणी, वजन, BP, ग्लुकोज किंवा इतर मोजमाप झाले का?"
+        },
+        "type": "free_text",
+        "next": "FU_008"
+      },
+      {
+        "id": "FU_008",
+        "text": {
+          "en": "What is the main problem you want addressed today?",
+          "hi": "आज किस मुख्य समस्या पर ध्यान चाहिए?",
+          "mr": "आज कोणत्या मुख्य समस्येवर लक्ष हवे?"
+        },
+        "type": "free_text",
+        "next": "MODULE_END"
+      }
+    ],
+    "rule": "Do not repeat all first-visit questions. Load previous answers and ask only unresolved, changed, or clinically relevant follow-up questions.",
+    "change_states": [
+      "improved",
+      "same",
+      "worse",
+      "new_symptom",
+      "red_flag",
+      "not_answered"
+    ]
+  },
+  "system_actions": {
+    "URGENT_001": "Stop routine flow, show validated urgent-medical-evaluation guidance, and route to clinician/emergency pathway. Do not diagnose.",
+    "MODULE_END": "Create structured case summary and missing-information list.",
+    "ROUTE_COMPLAINT": "Load module based on selected complaint."
+  }
+}
