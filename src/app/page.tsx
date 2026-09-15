@@ -2,18 +2,18 @@
 
 import Header from '@/components/Header';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
-import { 
-  Activity, 
-  ShieldCheck, 
-  Stethoscope, 
-  User, 
-  Shield, 
-  ArrowRight, 
-  Sparkles, 
-  CheckCircle2, 
-  Clock, 
-  Layers, 
-  Cpu, 
+import {
+  Activity,
+  ShieldCheck,
+  Stethoscope,
+  User,
+  Shield,
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Layers,
+  Cpu,
   Lock,
   ChevronRight,
   Languages,
@@ -110,7 +110,7 @@ export default function MediKioskMainLanding() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-16">
         {/* Hero Section — Matching the provided reference image layout */}
-        <motion.div 
+        <motion.div
           className="text-center max-w-3xl mx-auto mb-12 sm:mb-16"
           initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -119,8 +119,8 @@ export default function MediKioskMainLanding() {
           {/* Centered Botanical Emblem (from reference image) */}
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#234e32]/10 text-[#234e32] border border-[#234e32]/20 mb-4 shadow-sm">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 20A7 7 0 0 1 4 13C4 7 11 2 11 2s7 5 7 11a7 7 0 0 1-7 7Z"/>
-              <path d="M11 20V10"/>
+              <path d="M11 20A7 7 0 0 1 4 13C4 7 11 2 11 2s7 5 7 11a7 7 0 0 1-7 7Z" />
+              <path d="M11 20V10" />
             </svg>
           </div>
 
@@ -141,7 +141,7 @@ export default function MediKioskMainLanding() {
         </motion.div>
 
         {/* 4 Persona Portals Grid — Matching cards in reference image */}
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7"
           variants={containerVariants}
           initial="hidden"
@@ -218,7 +218,7 @@ export default function MediKioskMainLanding() {
         </motion.div>
 
         {/* System Highlights Banner in Warm Cream Glass */}
-        <motion.div 
+        <motion.div
           className="mt-14 rounded-3xl bg-[#fbf9f4]/88 border border-[#ded5c2]/80 p-6 sm:p-8 backdrop-blur-xl shadow-[0_10px_30px_-8px_rgba(45,35,20,0.08)]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -8,6 +8,8 @@ import { getSession, updateSession } from '@/lib/store/store';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { ClinicalSummary } from '@/lib/types';
+import DoctorSummaryAudio from '@/components/DoctorSummaryAudio';
+import { normalizeClinicalSummaryToEnglish, buildSpokenClinicalSummary } from '@/lib/clinicalSummaryTranslator';
 
 export default function PatientReviewPage({ params }: { params: { id: string } }) {
   const [summary, setSummary] = useState<ClinicalSummary | null>(null);
@@ -39,11 +41,14 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
             id: docSnap.id,
             patientId: data.patientId || data.patient?.id || docSnap.id,
             generatedAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            patient: data.patient || { name: 'Patient', age: 0, gender: 'Unknown', id: docSnap.id },
+            patient: data.patient || { name: 'Patient', age: 0, gender: 'Unknown', id: docSnap.id, createdAt: new Date().toISOString() },
             history: data.clinicalHistory || {
               chiefComplaint: data.chiefComplaint || 'Intake',
               duration: 'Reported during intake',
               associatedSymptoms: [],
+              medicationTaken: 'None reported',
+              allergies: 'No known allergy',
+              pastMedicalHistory: 'None declared',
               answers: data.answers || []
             },
             medications: 'None reported',
@@ -125,6 +130,20 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
     );
   }
 
+  const englishSummary = normalizeClinicalSummaryToEnglish(summary);
+  const spokenText = buildSpokenClinicalSummary({
+    patientName: englishSummary.patient?.name,
+    patientAge: englishSummary.patient?.age,
+    patientGender: englishSummary.patient?.gender,
+    chiefComplaint: englishSummary.history.chiefComplaint,
+    duration: englishSummary.history.duration,
+    associatedSymptoms: englishSummary.history.associatedSymptoms,
+    medications: englishSummary.medications,
+    allergies: englishSummary.allergies,
+    pastHistory: englishSummary.pastHistory,
+    redFlags: englishSummary.redFlags
+  });
+
   return (
     <AyurvedaBackground variant="kiosk">
       <Header title="Patient Clinical Intake" backHref="/doctor/dashboard" />
@@ -134,45 +153,54 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
           <p className="text-[#556358] text-sm">Review, edit and confirm the structured intake summary.</p>
         </div>
 
+        {/* 🔊 Prominent Listen to Summary Audio Controller */}
+        <div className="mb-6">
+          <DoctorSummaryAudio
+            textToSpeak={spokenText}
+            patientId={params.id}
+            patientName={englishSummary.patient?.name}
+          />
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2 rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8">
             <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-5">Patient Information</h3>
             <div className="grid sm:grid-cols-3 gap-4 mb-8">
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Name</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.name}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.name}</div>
               </div>
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Age</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.age || '—'}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.age || '—'}</div>
               </div>
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Gender</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.gender || '—'}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.gender || '—'}</div>
               </div>
             </div>
 
-            <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Chief Complaint</h3>
+            <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Chief Complaint (English)</h3>
             <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5 mb-6">
-              <div className="font-serif font-bold text-xl text-[#1b3d27] mb-1">{summary.history.chiefComplaint || 'None'}</div>
-              <div className="text-xs text-[#3e4a3f]"><strong>Duration:</strong> {summary.history.duration || 'Not specified'}</div>
+              <div className="font-serif font-bold text-xl text-[#1b3d27] mb-1">{englishSummary.history.chiefComplaint || 'None'}</div>
+              <div className="text-xs text-[#3e4a3f]"><strong>Duration:</strong> {englishSummary.history.duration || 'Not specified'}</div>
             </div>
 
             <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">History of Present Illness</h3>
             <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5 mb-6">
               <div className="font-bold text-sm text-[#1c241e] mb-1">Associated Symptoms:</div>
-              <div className="text-sm text-[#556358]">{summary.history.associatedSymptoms?.join(', ') || 'None reported'}</div>
+              <div className="text-sm text-[#556358]">{englishSummary.history.associatedSymptoms?.join(', ') || 'None reported'}</div>
             </div>
 
             <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Medications & Allergies</h3>
             <div className="grid sm:grid-cols-2 gap-4 mb-6">
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
                 <div className="text-xs font-bold text-[#829277] uppercase mb-1">Medications</div>
-                <div className="font-bold text-sm text-[#1c241e]">{summary.medications}</div>
+                <div className="font-bold text-sm text-[#1c241e]">{englishSummary.medications}</div>
               </div>
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
                 <div className="text-xs font-bold text-[#829277] uppercase mb-1">Allergies</div>
-                <div className="font-bold text-sm text-[#1c241e]">{summary.allergies}</div>
+                <div className="font-bold text-sm text-[#1c241e]">{englishSummary.allergies}</div>
               </div>
             </div>
 

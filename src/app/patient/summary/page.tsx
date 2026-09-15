@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
 import type { PatientSession, ClinicalSummary } from '@/lib/types';
 import { buildHistory } from '@/lib/clinicalHistory';
+import { normalizeClinicalSummaryToEnglish } from '@/lib/clinicalSummaryTranslator';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 
@@ -43,7 +44,10 @@ export default function SummaryPage() {
       status: 'pending'
     };
 
-    updateSession({ clinicalSummary: summary });
+    // Normalize physician-facing summary to English (answers in original language are preserved)
+    const physicianEnglishSummary = normalizeClinicalSummaryToEnglish(summary);
+
+    updateSession({ clinicalSummary: physicianEnglishSummary });
     sync('completed');
     router.push('/patient/complete');
   };

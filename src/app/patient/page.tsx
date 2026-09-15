@@ -29,7 +29,7 @@ export default function PatientKioskLandingPage() {
           <motion.div variants={itemVariants} className="inline-flex items-center gap-2 rounded-full bg-[#e4ede1] border border-[#c7d9c2] px-4 py-1.5 text-xs font-bold text-[#234e32] mb-6 shadow-xs">
             <Languages size={15} /> Multilingual • Touch Friendly • Voice Intake
           </motion.div>
-          
+
           <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl font-serif font-bold text-[#1b3d27] tracking-tight leading-[1.15] mb-5">
             Smart AI-Assisted <br />
             <span className="text-[#6f4827]">Healthcare Intake</span>
@@ -40,19 +40,19 @@ export default function PatientKioskLandingPage() {
           </motion.p>
 
           <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
-            <motion.a 
-              whileHover={{ scale: 1.03 }} 
-              whileTap={{ scale: 0.97 }} 
-              href="/patient/language" 
+            <motion.a
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              href="/patient/language"
               onClick={() => clearSession()}
               className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base sm:text-lg shadow-lg shadow-[#234e32]/25 transition focus:outline-none focus:ring-4 focus:ring-[#234e32]/30"
             >
               Start Consultation <ChevronRight size={20} />
             </motion.a>
-            <motion.a 
-              whileHover={{ scale: 1.03 }} 
-              whileTap={{ scale: 0.97 }} 
-              href="/patient/identify" 
+            <motion.a
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              href="/patient/identify"
               className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
             >
               Existing Patient
@@ -67,7 +67,7 @@ export default function PatientKioskLandingPage() {
         </motion.div>
 
         {/* Right Feature Card */}
-        <motion.div 
+        <motion.div
           className="relative"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -84,7 +84,7 @@ export default function PatientKioskLandingPage() {
               </div>
             </div>
 
-            <motion.ul 
+            <motion.ul
               className="space-y-3 text-[#3e4a3f] text-xs sm:text-sm font-medium"
               initial="hidden"
               animate="show"
@@ -102,8 +102,8 @@ export default function PatientKioskLandingPage() {
                 'Deterministic clinical red-flag triage',
                 'Attending physician final decision'
               ].map((item) => (
-                <motion.li 
-                  key={item} 
+                <motion.li
+                  key={item}
                   className="flex items-center gap-3"
                   variants={{
                     hidden: { opacity: 0, x: -8 },
