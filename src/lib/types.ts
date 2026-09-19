@@ -22,8 +22,11 @@ export interface Answer {
   questionText?: string;
   language?: string;
   answer: string;
-  inputMethod?: 'text' | 'voice';
+  inputMethod?: 'text' | 'voice' | 'body_map';
   timestamp?: string;
+  originalTranscript?: string;
+  normalizedEnglishText?: string;
+  transcriptionSource?: 'bhashini' | 'web-speech';
 }
 
 export interface Question {
@@ -48,6 +51,7 @@ export interface ClinicalHistory {
   allergies: string;
   pastMedicalHistory: string;
   otherInfo?: string;
+  bodyLocations?: BodyLocation[];
   answers: Answer[];
 }
 
@@ -85,6 +89,22 @@ export interface RedFlag {
   detectedAt: string;
 }
 
+
+export interface StructuredPhysicianSummary {
+  clinicalHandoff: string;
+  // Legacy fields for backward compatibility with old sessions
+  chiefComplaint?: string;
+  durationOnset?: string;
+  affectedArea?: string;
+  associatedSymptoms?: string[];
+  relevantHistory?: string;
+  patientReportedAnswers?: { question: string; answer: string }[];
+  reportsInvestigations?: string;
+  medicines?: string;
+  redFlags?: string[];
+  missingUnknownInformation?: string[];
+}
+
 export interface ClinicalSummary {
   id: string;
   patientId: string;
@@ -117,10 +137,44 @@ export interface FHIRResource {
   [key: string]: unknown;
 }
 
+export interface BodyLocation {
+  id: string;
+  name: string;
+  view: 'front' | 'back';
+  side?: 'left' | 'right' | 'midline' | 'bilateral';
+  paintedPoints?: [number, number, number][];
+}
+
+export interface AyurvedaReference {
+  term: string;        // e.g. "Amlapitta"
+  termHindi: string;   // e.g. "अम्लपित्त"
+  basis: string[];     // e.g. ["burning sensation", "acidic/regurgitation symptoms"]
+  confidence: 'reference' | 'possible';
+  status: 'unconfirmed' | 'accepted' | 'rejected' | 'edited';
+}
+
+export interface MedicationSafetyAlert {
+  id: string;
+  itemA: string;
+  itemB: string;
+  interactionType: 'herb-drug' | 'drug-drug' | 'duplicate';
+  severity: 'informational' | 'caution' | 'high_attention';
+  concern: string;
+  evidenceNote: string;
+  source: string;
+  status: 'pending_review' | 'acknowledged' | 'dismissed';
+  clinicianAction?: 'acknowledged' | 'dismissed';
+  clinicianNote?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
 export interface PatientSession {
   patient?: Patient;
   consent?: Consent;
   chiefComplaint?: string;
+  originalChiefComplaint?: string;
+  bodyLocations?: BodyLocation[];
   activeModules?: string[];
   completedModules?: string[];
   answers: Answer[];
@@ -129,7 +183,12 @@ export interface PatientSession {
   documents: MedicalDocument[];
   extractedData?: ExtractedClinicalData;
   redFlags: RedFlag[];
+  ayurvedaReferences?: AyurvedaReference[];
+  medicationSafetyAlerts?: MedicationSafetyAlert[];
   clinicalSummary?: ClinicalSummary;
+  structuredPhysicianSummary?: StructuredPhysicianSummary;
+  physicianSummaryStatus?: 'pending' | 'generated' | 'failed';
+
   doctorReview?: DoctorReview;
   firestoreSessionId?: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
@@ -141,4 +200,17 @@ export interface PatientSession {
   triageNote?: string;
   triageTimestamp?: string;
   triageNurseId?: string;
+  
+  // Smart Queue Fields
+  queueStatus?: 'waiting' | 'triage' | 'doctor_review' | 'completed';
+  queueTokenNumber?: string;
+  queuePriority?: 'emergency' | 'high' | 'normal';
+  queuePriorityScore?: number;
+  queueJoinedAt?: any;
+  queuePosition?: number;
+  estimatedWaitMinutes?: number;
+  nurseStatus?: string;
+  doctorStatus?: string;
+  assignedDoctorId?: string;
 }
+

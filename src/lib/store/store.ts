@@ -41,7 +41,7 @@ export function clearStore(key: string) {
 }
 
 export function getSession(): PatientSession {
-  return loadFromStore<PatientSession>(STORAGE_KEYS.patientSession, { answers: [], knownFacts: [], documents: [], redFlags: [] }) || { answers: [], knownFacts: [], documents: [], redFlags: [] };
+  return loadFromStore<PatientSession>(STORAGE_KEYS.patientSession, { answers: [], knownFacts: [], documents: [], redFlags: [], bodyLocations: [] }) || { answers: [], knownFacts: [], documents: [], redFlags: [], bodyLocations: [] };
 }
 
 export function updateSession(updates: Partial<PatientSession>) {

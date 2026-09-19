@@ -44,9 +44,9 @@
     {
       "id": "AYU_002",
       "text": {
-        "en": "How are your appetite and digestion compared with usual?",
-        "hi": "सामान्य की तुलना में भूख और पाचन कैसे हैं?",
-        "mr": "नेहमीच्या तुलनेत भूक व पचन कसे आहे?"
+        "en": "To understand your overall health, how are your appetite and digestion?",
+        "hi": "आपके समग्र स्वास्थ्य को समझने के लिए, आपकी भूख और पाचन कैसे हैं?",
+        "mr": "तुमचे एकूण आरोग्य समजून घेण्यासाठी, तुमची भूक आणि पचन कसे आहे?"
       },
       "type": "free_text",
       "next": "AYU_003"
@@ -912,15 +912,15 @@
       ]
     },
     "back_pain": {
-      "display_name": "Back Pain / Katishoola",
+      "display_name": "Back / Neck / Spine Pain",
       "entry_question": "BAK_001",
       "questions": [
         {
           "id": "BAK_001",
           "text": {
-            "en": "When did the back pain start?",
-            "hi": "कमर दर्द कब शुरू हुआ?",
-            "mr": "कंबरदुखी कधी सुरू झाली?"
+            "en": "When did this pain start?",
+            "hi": "यह दर्द कब शुरू हुआ?",
+            "mr": "हे दुखणे कधी सुरू झाले?"
           },
           "type": "duration",
           "next": "BAK_002"
@@ -928,9 +928,9 @@
         {
           "id": "BAK_002",
           "text": {
-            "en": "Where exactly is the pain? Does it spread to the leg?",
-            "hi": "दर्द कहाँ है? क्या पैर तक जाता है?",
-            "mr": "वेदना कुठे आहे? पायाकडे जाते का?"
+            "en": "Where exactly is the pain? Does it spread to your arms or legs?",
+            "hi": "दर्द कहाँ है? क्या यह हाथ या पैर तक जाता है?",
+            "mr": "वेदना नेमकी कुठे आहे? ती हात किंवा पायाकडे जाते का?"
           },
           "type": "free_text",
           "next": "BAK_003"

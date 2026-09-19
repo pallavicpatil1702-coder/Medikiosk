@@ -5,8 +5,22 @@ import AyurvedaBackground from '@/components/AyurvedaBackground';
 import { Activity, ShieldCheck, Languages, ChevronRight, Leaf, Sparkles, HeartPulse } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import { clearSession } from '@/lib/store/store';
+import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from '@/lib/i18n';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function PatientKioskLandingPage() {
+  const { currentUser, isAnonymous, loading, role } = useAuth();
+  const { t } = useTranslation();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && currentUser && !isAnonymous && role === 'patient') {
+      router.replace('/patient/dashboard');
+    }
+  }, [currentUser, isAnonymous, loading, role, router]);
+
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
@@ -27,16 +41,16 @@ export default function PatientKioskLandingPage() {
       <section className="relative z-10 max-w-6xl mx-auto px-6 pt-16 sm:pt-20 pb-16 grid lg:grid-cols-2 gap-12 sm:gap-16 items-center">
         <motion.div variants={containerVariants} initial="hidden" animate="show">
           <motion.div variants={itemVariants} className="inline-flex items-center gap-2 rounded-full bg-[#e4ede1] border border-[#c7d9c2] px-4 py-1.5 text-xs font-bold text-[#234e32] mb-6 shadow-xs">
-            <Languages size={15} /> Multilingual • Touch Friendly • Voice Intake
+            <Languages size={15} /> {t('Multilingual • Touch Friendly • Voice Intake')}
           </motion.div>
 
           <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl font-serif font-bold text-[#1b3d27] tracking-tight leading-[1.15] mb-5">
-            Smart AI-Assisted <br />
-            <span className="text-[#6f4827]">Healthcare Intake</span>
+            {t('Smart AI-Assisted')} <br />
+            <span className="text-[#6f4827]">{t('Healthcare Intake')}</span>
           </motion.h1>
 
           <motion.p variants={itemVariants} className="text-base sm:text-lg text-[#4a5749] leading-relaxed mb-8 max-w-xl">
-            Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.
+            {t('Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.')}
           </motion.p>
 
           <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
@@ -47,22 +61,37 @@ export default function PatientKioskLandingPage() {
               onClick={() => clearSession()}
               className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base sm:text-lg shadow-lg shadow-[#234e32]/25 transition focus:outline-none focus:ring-4 focus:ring-[#234e32]/30"
             >
-              Start Consultation <ChevronRight size={20} />
+              {t('Start Consultation')} <ChevronRight size={20} />
             </motion.a>
-            <motion.a
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              href="/patient/identify"
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
-            >
-              Existing Patient
-            </motion.a>
+            {loading ? (
+              <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] px-8 py-4 w-[160px] border border-[#ded5c2] shadow-xs">
+                <div className="w-5 h-5 border-2 border-[#4d2f19] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : currentUser && !isAnonymous ? (
+              <motion.a
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                href="/patient/dashboard"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
+              >
+                {t('Go to Dashboard')}
+              </motion.a>
+            ) : (
+              <motion.a
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                href="/patient/auth"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
+              >
+                {t('Login / Sign Up')}
+              </motion.a>
+            )}
           </motion.div>
 
           <motion.div variants={itemVariants} className="mt-10 flex items-center gap-6 text-xs text-[#556358] font-semibold">
-            <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> Touch Screen</span>
-            <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> Secure Session</span>
-            <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> 9 Languages</span>
+            <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> {t('Touch Screen')}</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> {t('Secure Session')}</span>
+            <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> {t('9 Languages')}</span>
           </motion.div>
         </motion.div>
 
@@ -79,8 +108,8 @@ export default function PatientKioskLandingPage() {
                 <HeartPulse size={24} />
               </div>
               <div>
-                <div className="font-serif font-bold text-lg text-[#1b3d27]">Holistic Intake Flow</div>
-                <div className="text-xs text-[#556358]">Requires attending physician verification</div>
+                <div className="font-serif font-bold text-lg text-[#1b3d27]">{t('Holistic Intake Flow')}</div>
+                <div className="text-xs text-[#556358]">{t('Requires attending physician verification')}</div>
               </div>
             </div>
 
@@ -94,31 +123,28 @@ export default function PatientKioskLandingPage() {
               }}
             >
               {[
-                'Identify patient & Record consent',
-                'Report chief complaints in 9 languages',
-                'Speak answers using voice microphone',
-                'Listen to questions using speech audio',
-                'Medical report & document OCR upload',
-                'Deterministic clinical red-flag triage',
-                'Attending physician final decision'
-              ].map((item) => (
+                t('Identify patient & Record consent'),
+                t('Report chief complaints in 9 languages'),
+                t('Speak answers using voice microphone'),
+                t('Listen to questions using speech audio'),
+                t('Medical report & document OCR upload'),
+                t('Deterministic clinical red-flag triage'),
+                t('Attending physician final decision')
+              ].map((item, i) => (
                 <motion.li
-                  key={item}
-                  className="flex items-center gap-3"
-                  variants={{
-                    hidden: { opacity: 0, x: -8 },
-                    show: { opacity: 1, x: 0 }
-                  }}
+                  key={i}
+                  variants={itemVariants}
+                  className="flex items-start gap-3"
                 >
-                  <span className="w-2 h-2 rounded-full bg-[#234e32] shrink-0" />
-                  <span>{item}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#829277] mt-1.5 shrink-0" />
+                  <span className="leading-relaxed">{item}</span>
                 </motion.li>
               ))}
             </motion.ul>
 
-            <div className="mt-7 pt-5 border-t border-[#ded5c2]/70 flex items-center gap-2.5 text-xs text-[#6e7d70]">
-              <ShieldCheck size={16} className="text-[#234e32] shrink-0" />
-              <span>Your privacy is protected. MediKiosk complies with healthcare data safety standards.</span>
+            <div className="mt-6 pt-5 border-t border-[#ded5c2]/70 flex items-start gap-3 text-[#6a7569] text-[10px] sm:text-xs leading-relaxed">
+              <ShieldCheck size={16} className="shrink-0 text-[#829277]" />
+              <p>{t('Your privacy is protected. MediKiosk complies with healthcare data safety standards.')}</p>
             </div>
           </div>
         </motion.div>

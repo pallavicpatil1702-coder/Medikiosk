@@ -96,8 +96,23 @@ export default function LanguagePage() {
 
   const handleContinue = () => {
     saveToStore(STORAGE_KEYS.language, selected);
-    // Also update it in the session if we want to store it there
-    updateSession({ patient: { id: '', name: '', age: 0, gender: '', language: selected, createdAt: new Date().toISOString() } });
+    
+    // URGENT FIX: Isolate session state on new consultation
+    const { clearSession } = require('@/lib/store/store');
+    clearSession();
+    
+    // Re-initialize with completely fresh state
+    updateSession({ 
+      patient: { id: '', name: '', age: 0, gender: '', language: selected, createdAt: new Date().toISOString() },
+      chiefComplaint: '',
+      bodyLocations: [],
+      answers: [],
+      redFlags: [],
+      documents: [],
+      knownFacts: [],
+      activeModules: [],
+      completedModules: []
+    });
     sync();
     window.location.href = '/patient/identify';
   };
@@ -106,7 +121,7 @@ export default function LanguagePage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Choose Language" backHref="/patient" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={2} total={12} />
+        <ProgressBar current={2} total={13} />
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] shadow-xs mb-4">
             <Globe size={32} />
@@ -155,3 +170,4 @@ export default function LanguagePage() {
     </AyurvedaBackground>
   );
 }
+

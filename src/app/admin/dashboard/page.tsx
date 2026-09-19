@@ -62,6 +62,7 @@ interface EnrichedSession extends PatientSession {
   doctorNote?: string;
   doctorReviewedAt?: string;
   doctorEmail?: string;
+  queueStatus?: 'waiting' | 'triage' | 'doctor_review' | 'completed';
 }
 
 interface AuditEvent {
@@ -135,7 +136,8 @@ function AdminDashboardContent() {
             id: docSnap.id,
             patientId: data.patientId || docSnap.id,
             patient: data.patient || { name: 'Unknown Patient' },
-            chiefComplaint: data.chiefComplaint || data.clinicalSummary?.history?.chiefComplaint || 'Intake completed',
+            chiefComplaint: data.chiefComplaint || data.clinicalSummary?.history?.chiefComplaint || 'Not reported',
+            bodyLocations: data.bodyLocations || [],
             answers: data.answers || [],
             documents: data.documents || [],
             redFlags: data.redFlags || [],
@@ -149,6 +151,7 @@ function AdminDashboardContent() {
             doctorNote: data.doctorNote,
             doctorReviewedAt: data.doctorReviewedAt,
             doctorEmail: data.doctorEmail,
+            queueStatus: data.queueStatus,
             rawTime,
             createdAt: data.createdAt,
             updatedAt: data.updatedAt

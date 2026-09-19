@@ -34,7 +34,7 @@ export default function ConsentPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Your Consent" backHref="/patient/identify" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={4} total={12} />
+        <ProgressBar current={4} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Your Consent')}</h2>
           <p className="text-[#556358] text-sm">{t('Before we proceed, please review how your information will be used.')}</p>
@@ -104,3 +104,4 @@ export default function ConsentPage() {
     </AyurvedaBackground>
   );
 }
+

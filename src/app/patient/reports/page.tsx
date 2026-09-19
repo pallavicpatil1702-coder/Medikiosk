@@ -136,7 +136,7 @@ export default function ReportsPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Previous Medical Reports" backHref="/patient/history" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={10} total={12} />
+        <ProgressBar current={11} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Previous Medical Reports')}</h2>
           <p className="text-[#556358] text-sm">{t('Upload or scan reports to help extract relevant clinical information.')}</p>
@@ -256,3 +256,4 @@ export default function ReportsPage() {
     </AyurvedaBackground>
   );
 }
+

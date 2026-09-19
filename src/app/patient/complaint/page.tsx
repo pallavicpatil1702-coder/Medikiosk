@@ -8,14 +8,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
 import { useTranslation } from '@/lib/i18n';
-import { useWebSpeech } from '@/hooks/useWebSpeech';
+import { useBhashiniVoice } from '@/hooks/useBhashiniVoice';
 import { useSync } from '@/hooks/useSync';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { requiresBodyMap } from '@/lib/bodyMapLogic';
 
 export default function ComplaintPage() {
   const [mode, setMode] = useState<'touch' | 'voice'>('touch');
   const [spoken, setSpoken] = useState(false);
   const [text, setText] = useState('');
+  const [normalizedText, setNormalizedText] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const router = useRouter();
   const { t, lang } = useTranslation();
@@ -24,12 +26,15 @@ export default function ComplaintPage() {
 
   const {
     isListening,
+    isProcessing,
     transcript,
+    normalizedText: voiceNormalized,
     error: speechError,
+    source: transcriptionSource,
     startListening,
     stopListening,
     reset,
-  } = useWebSpeech(lang);
+  } = useBhashiniVoice(lang);
 
   useEffect(() => {
     const session = getSession();
@@ -39,11 +44,12 @@ export default function ComplaintPage() {
   }, []);
 
   useEffect(() => {
-    if (transcript && !isListening) {
+    if (transcript && !isListening && !isProcessing) {
       setSpoken(true);
       setText(transcript);
+      setNormalizedText(voiceNormalized || transcript);
     }
-  }, [transcript, isListening]);
+  }, [transcript, isListening, isProcessing, voiceNormalized]);
 
   const handleListen = () => {
     if (isListening) {
@@ -56,12 +62,30 @@ export default function ComplaintPage() {
   };
 
   const handleContinue = () => {
-    const finalComplaint = [...selectedOptions, text.trim()].filter(Boolean).join(', ');
-    if (!finalComplaint) return;
+    const finalDisplayComplaint = [...selectedOptions, text.trim()].filter(Boolean).join(', ');
+    const finalNormalizedComplaint = [...selectedOptions, normalizedText.trim() || text.trim()].filter(Boolean).join(', ');
     
-    updateSession({ chiefComplaint: finalComplaint, answers: [], knownFacts: [], activeModules: [], completedModules: [], redFlags: [] });
+    if (!finalDisplayComplaint) return;
+    
+    const needsBodyMap = requiresBodyMap(finalNormalizedComplaint, selectedOptions);
+
+    updateSession({ 
+      chiefComplaint: finalNormalizedComplaint,
+      originalChiefComplaint: finalDisplayComplaint,
+      answers: [], 
+      knownFacts: [], 
+      activeModules: [], 
+      completedModules: [], 
+      redFlags: [],
+      bodyLocations: needsBodyMap ? getSession().bodyLocations : [] 
+    });
     sync();
-    router.push('/patient/questions');
+
+    if (needsBodyMap) {
+      router.push('/patient/body-map');
+    } else {
+      router.push('/patient/questions');
+    }
   };
 
   const quickSelects = ['Fever', 'Cough', 'Pain', 'Headache', 'Stomach problem', 'Injury', 'Other'];
@@ -70,7 +94,7 @@ export default function ComplaintPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Chief Complaint" backHref="/patient/profile" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={6} total={12} />
+        <ProgressBar current={6} total={13} />
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-3.5 mb-2">
             <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27]">{t('What brings you to the hospital today?')}</h2>
@@ -147,27 +171,36 @@ export default function ComplaintPage() {
                   })}
                 </div>
                 <label htmlFor="complaint-text" className="block text-sm font-bold text-[#1c241e] mb-2">{t('Or type your concern')}</label>
-                <input 
-                  id="complaint-text" 
-                  value={text} 
-                  onChange={e => setText(e.target.value)} 
-                  className="w-full rounded-2xl border border-[#ded5c2] bg-[#f8f5ee] px-5 py-4 text-base font-semibold text-[#1c241e] focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 focus:border-[#234e32] transition" 
-                  placeholder={t('e.g. I have a fever and cough')} 
-                />
+                <textarea 
+                  id="complaint-text"
+                  className="w-full rounded-2xl bg-white border border-[#ded5c2] p-5 focus:outline-none focus:ring-2 focus:ring-[#234e32] resize-none transition"
+                  rows={4}
+                  placeholder={t("e.g. I have had a severe headache since yesterday morning...")}
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setNormalizedText(e.target.value); // Manual edits override normalization
+                  }}
+                ></textarea>
               </div>
             )}
 
             {mode === 'voice' && (
               <div className="text-center py-4">
                 <h3 className="text-2xl font-serif font-bold text-[#1b3d27] mb-6">{t('Tap to Speak')}</h3>
-                <button
+                <button 
                   onClick={handleListen}
-                  className={`w-28 h-28 rounded-full mx-auto flex items-center justify-center shadow-xl transition focus:outline-none focus:ring-4 focus:ring-[#234e32]/30 ${
-                    isListening ? 'bg-[#b83b3b] animate-listen text-white' : spoken ? 'bg-[#234e32] text-white' : 'bg-[#234e32] hover:bg-[#1a3b26] text-white'
+                  disabled={isProcessing}
+                  className={`mx-auto flex flex-col items-center justify-center p-8 sm:p-12 rounded-full transition shadow-lg relative ${
+                    isListening ? 'bg-[#ffebef] text-[#d63a4a] border-2 border-[#d63a4a] animate-pulse' : 
+                    isProcessing ? 'bg-[#e4ede1] text-[#556358] border-2 border-[#c7d9c2]' :
+                    'bg-[#e4ede1] text-[#234e32] border-2 border-transparent hover:bg-[#d5e3d0]'
                   }`}
-                  aria-label={isListening ? 'Listening' : spoken ? 'Speech recognized' : 'Start listening'}
                 >
-                  <Mic size={38} className="text-white" />
+                  <Mic size={isProcessing ? 32 : 48} className={`mb-3 sm:mb-4 ${isListening ? 'animate-bounce' : isProcessing ? 'animate-spin' : ''}`} />
+                  <span className="font-bold text-lg sm:text-xl">
+                    {isListening ? t('Listening...') : isProcessing ? t('Processing...') : t('Tap to Speak')}
+                  </span>
                 </button>
                 <div className="mt-6 min-h-[50px] flex items-center justify-center">
                   {speechError ? (

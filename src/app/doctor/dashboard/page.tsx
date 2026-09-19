@@ -60,6 +60,10 @@ interface EnrichedPatientSession extends PatientSession {
   waitingTimeStr: string;
   submitTimeStr: string;
   rawTime: any;
+  queueStatus?: 'waiting' | 'triage' | 'doctor_review' | 'completed';
+  queuePriority?: 'emergency' | 'high' | 'normal';
+  queuePosition?: number;
+  queueTokenNumber?: string;
   doctorDecision?: 'accepted' | 'edited' | 'rejected';
   doctorNote?: string;
   doctorReviewedAt?: string;
@@ -128,6 +132,7 @@ function DoctorDashboardContent() {
             patientId: data.patientId || docSnap.id,
             patient: data.patient,
             chiefComplaint: data.chiefComplaint || '',
+            bodyLocations: data.bodyLocations || [],
             answers: data.answers || [],
             documents: data.documents || [],
             redFlags: redFlags,
@@ -138,6 +143,10 @@ function DoctorDashboardContent() {
             triageNote: data.triageNote || '',
             triageTimestamp: data.triageTimestamp,
             triageNurseId: data.triageNurseId,
+            queueStatus: data.queueStatus,
+            queuePriority: data.queuePriority,
+            queuePosition: data.queuePosition,
+            queueTokenNumber: data.queueTokenNumber,
             doctorDecision: data.doctorDecision,
             doctorNote: data.doctorNote,
             doctorReviewedAt: data.doctorReviewedAt,
@@ -247,6 +256,8 @@ function DoctorDashboardContent() {
         doctorReviewedAt: new Date().toISOString(),
         doctorUid: currentUser?.uid || 'physician-station-1',
         doctorEmail: currentUser?.email || 'physician@medi-kiosk.demo',
+        queueStatus: 'completed',
+        doctorStatus: 'completed',
         updatedAt: serverTimestamp()
       };
 
@@ -543,8 +554,13 @@ function DoctorDashboardContent() {
                               {s.patient?.age ? `${s.patient.age}y` : ''} • {s.patient?.gender || 'Unknown'}
                             </span>
                           </div>
-                          <div className="text-[11px] text-[#6f4827] font-mono mt-0.5">
-                            ID: {s.patientId.slice(0, 10)}...
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[11px] font-mono font-bold text-[#1b3d27] bg-[#e4ede1] px-2 py-0.5 rounded-lg border border-[#c7d9c2]">
+                              Token: {s.queueTokenNumber || '—'}
+                            </span>
+                            <div className="text-[11px] text-[#6f4827] font-mono">
+                              ID: {s.patientId.slice(0, 10)}...
+                            </div>
                           </div>
                         </div>
 
@@ -572,6 +588,11 @@ function DoctorDashboardContent() {
                       <div className="mt-2.5 text-xs text-[#1c241e] font-medium line-clamp-1">
                         <strong className="text-[#556358]">Complaint:</strong> {s.chiefComplaint || 'Not reported'}
                       </div>
+                      {s.bodyLocations && s.bodyLocations.length > 0 && (
+                        <div className="mt-1 text-xs text-[#1c241e] font-medium line-clamp-1">
+                          <strong className="text-[#556358]">Affected:</strong> {s.bodyLocations.map(b => b.name || b.id).join(', ')}
+                        </div>
+                      )}
 
                       {/* Red Flags count & Nurse status */}
                       <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-[#ded5c2] text-[11px]">
@@ -728,6 +749,7 @@ function DoctorDashboardContent() {
                       patientAge: selectedPatient.patient?.age,
                       patientGender: selectedPatient.patient?.gender,
                       chiefComplaint: englishSummary.history.chiefComplaint,
+                      bodyLocations: selectedPatient.bodyLocations?.map(b => b.name || b.id) || [],
                       duration: englishSummary.history.duration,
                       associatedSymptoms: englishSummary.history.associatedSymptoms,
                       medications: englishSummary.medications,
@@ -786,6 +808,11 @@ function DoctorDashboardContent() {
                         <div className="text-base font-extrabold text-[#1c241e]">
                           {englishSummary.history.chiefComplaint || 'None recorded'}
                         </div>
+                        {selectedPatient.bodyLocations && selectedPatient.bodyLocations.length > 0 && (
+                          <div className="text-sm font-semibold text-[#1c241e] mt-1">
+                            Affected Areas: {selectedPatient.bodyLocations.map(b => b.name || b.id).join(', ')}
+                          </div>
+                        )}
                         {englishSummary.history.duration && (
                           <div className="text-xs text-[#556358] font-mono">
                             Duration: {englishSummary.history.duration}
@@ -1043,6 +1070,7 @@ function DoctorDashboardContent() {
                           </div>
                           <p className="text-xs text-[#1c241e] mt-1">
                             Chief complaint: "{selectedPatient.chiefComplaint || 'Not reported'}".
+                            {selectedPatient.bodyLocations && selectedPatient.bodyLocations.length > 0 && ` Affected Areas: ${selectedPatient.bodyLocations.map(b => b.name || b.id).join(', ')}.`}
                           </p>
                         </div>
 

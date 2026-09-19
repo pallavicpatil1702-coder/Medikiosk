@@ -10,6 +10,9 @@ import { getSession, updateSession } from '@/lib/store/store';
 import { Patient } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function ProfilePage() {
   const [name, setName] = useState('');
@@ -20,15 +23,49 @@ export default function ProfilePage() {
   const { t } = useTranslation();
   const { sync } = useSync();
 
+  const { currentUser } = useAuth();
+
   useEffect(() => {
-    const session = getSession();
-    if (session?.patient) {
-      setName(session.patient.name || '');
-      setAge(session.patient.age?.toString() || '');
-      setGender(session.patient.gender || 'Male');
-      setContact(session.patient.contact || '');
+    async function loadPatientData() {
+      const session = getSession();
+      // Start by checking if session has data
+      if (session?.patient?.name) {
+        setName(session.patient.name);
+        setAge(session.patient.age?.toString() || '');
+        setGender(session.patient.gender || 'Male');
+        setContact(session.patient.contact || '');
+      } else if (currentUser && !currentUser.isAnonymous) {
+        // If not in session but user is logged in, fetch from Firestore
+        try {
+          const profileRef = doc(db, 'patients', currentUser.uid);
+          const profileSnap = await getDoc(profileRef);
+          if (profileSnap.exists()) {
+            const data = profileSnap.data();
+            setName(data.name || '');
+            setAge(data.age?.toString() || '');
+            setGender(data.gender || 'Male');
+            setContact(data.contact || '');
+            
+            // Also update the local session so it's ready
+            updateSession({ 
+              patient: {
+                id: currentUser.uid,
+                name: data.name || '',
+                age: parseInt(data.age, 10) || 0,
+                gender: data.gender || 'Male',
+                contact: data.contact || '',
+                createdAt: data.createdAt
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Failed to load patient profile:", err);
+        }
+      }
     }
-  }, []);
+    
+    loadPatientData();
+  }, [currentUser]);
 
   const handleContinue = () => {
     const session = getSession();
@@ -50,7 +87,7 @@ export default function ProfilePage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Patient Profile" backHref="/patient/consent" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={5} total={12} />
+        <ProgressBar current={5} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Patient Information')}</h2>
           <p className="text-[#556358] text-sm">{t('Your details help us prepare a structured clinical summary.')}</p>
@@ -125,3 +162,4 @@ export default function ProfilePage() {
     </AyurvedaBackground>
   );
 }
+

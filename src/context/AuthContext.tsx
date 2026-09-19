@@ -49,7 +49,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const tokenResult = await user.getIdTokenResult(forceRefresh);
-      const userRole = (tokenResult.claims.role as UserRole) || null;
+      let userRole = (tokenResult.claims.role as UserRole) || null;
+      
+      // If no custom claim is found and user is not anonymous, default to patient
+      if (!userRole && !user.isAnonymous) {
+        userRole = 'patient';
+      }
+      
       setRole(userRole);
       return userRole;
     } catch (err) {

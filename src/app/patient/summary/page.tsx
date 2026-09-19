@@ -7,14 +7,17 @@ import { Stethoscope, AlertTriangle, FileText, Pill, User, CheckCircle2, Sparkle
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
-import type { PatientSession, ClinicalSummary } from '@/lib/types';
+import type { PatientSession, ClinicalSummary, AyurvedaReference } from '@/lib/types';
 import { buildHistory } from '@/lib/clinicalHistory';
-import { normalizeClinicalSummaryToEnglish } from '@/lib/clinicalSummaryTranslator';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 
 export default function SummaryPage() {
   const [session, setSessionState] = useState<PatientSession | null>(null);
+  const [ayurvedaReferences, setAyurvedaReferences] = useState<AyurvedaReference[] | null>(null);
+  const [isGeneratingAyurveda, setIsGeneratingAyurveda] = useState(false);
+  const [hasMedicationSafetyAlerts, setHasMedicationSafetyAlerts] = useState(false);
+  const [isGeneratingSafety, setIsGeneratingSafety] = useState(false);
   const router = useRouter();
   const { t } = useTranslation();
   const { sync } = useSync();
@@ -22,6 +25,37 @@ export default function SummaryPage() {
   useEffect(() => {
     const s = getSession();
     setSessionState(s);
+    if (s && !s.ayurvedaReferences) {
+      setIsGeneratingAyurveda(true);
+      fetch('/api/ai/generateAyurvedaReference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: s, sessionId: s.firestoreSessionId })
+      }).then(res => res.json()).then(data => {
+        if (data.references) {
+          setAyurvedaReferences(data.references);
+          updateSession({ ayurvedaReferences: data.references });
+        }
+      }).catch(console.error).finally(() => setIsGeneratingAyurveda(false));
+    } else if (s && s.ayurvedaReferences) {
+      setAyurvedaReferences(s.ayurvedaReferences);
+    }
+
+    if (s && !s.medicationSafetyAlerts) {
+      setIsGeneratingSafety(true);
+      fetch('/api/ai/generateMedicationSafety', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: s.firestoreSessionId })
+      }).then(res => res.json()).then(data => {
+        if (data.alerts && data.alerts.length > 0) {
+          setHasMedicationSafetyAlerts(true);
+          updateSession({ medicationSafetyAlerts: data.alerts });
+        }
+      }).catch(console.error).finally(() => setIsGeneratingSafety(false));
+    } else if (s && s.medicationSafetyAlerts && s.medicationSafetyAlerts.length > 0) {
+      setHasMedicationSafetyAlerts(true);
+    }
   }, []);
 
   const handleSendToDoctor = () => {
@@ -44,11 +78,39 @@ export default function SummaryPage() {
       status: 'pending'
     };
 
-    // Normalize physician-facing summary to English (answers in original language are preserved)
-    const physicianEnglishSummary = normalizeClinicalSummaryToEnglish(summary);
-
-    updateSession({ clinicalSummary: physicianEnglishSummary });
+    // Save localized summary for patient-facing views, and set physician summary status to pending
+    updateSession({ 
+      clinicalSummary: summary,
+      physicianSummaryStatus: 'pending'
+    });
+    
+    // Sync the local session to Firestore to ensure sessionId is created and data is saved
     sync('completed');
+
+    // Fire & forget the LLM physician summary generation in the background
+    // We do NOT await this because we want to immediately redirect the patient to completion
+    if (session.firestoreSessionId) {
+      fetch('/api/ai/generatePhysicianSummary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.firestoreSessionId })
+      }).catch(err => console.error('Failed to trigger physician summary generation:', err));
+    } else {
+      // If firestoreSessionId is not instantly available, we rely on a backend trigger or 
+      // queue processor, but ideally sync('completed') sets it fast enough, or we can use 
+      // the known doc ID. We will wait a brief moment for sync to return if needed.
+      setTimeout(() => {
+        const updatedSession = getSession();
+        if (updatedSession?.firestoreSessionId) {
+          fetch('/api/ai/generatePhysicianSummary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: updatedSession.firestoreSessionId })
+          }).catch(console.error);
+        }
+      }, 2000);
+    }
+
     router.push('/patient/complete');
   };
 
@@ -71,7 +133,7 @@ export default function SummaryPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Clinical Intake Summary" backHref="/patient/extraction" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={12} total={12} />
+        <ProgressBar current={13} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Your Clinical Intake Summary')}</h2>
           <div className="inline-flex items-center gap-2 rounded-full bg-[#f6ebd0] border border-[#e5d4a4] px-4 py-1.5 text-xs font-bold text-[#6f4827]">
@@ -124,6 +186,18 @@ export default function SummaryPage() {
               <div className="text-sm text-[#4a5749]">
                 <strong className="text-[#1c241e]">{t('Associated:')}</strong> {history.associatedSymptoms.length > 0 ? history.associatedSymptoms.join(', ') : t('None')}
               </div>
+              {session.bodyLocations && session.bodyLocations.length > 0 && (
+                <div className="text-sm text-[#4a5749] mt-3 border-t border-[#ded5c2]/60 pt-3">
+                  <strong className="text-[#1c241e] block mb-1.5">{t('Affected Areas:')}</strong>
+                  <div className="flex flex-wrap gap-1.5">
+                    {session.bodyLocations.map(loc => (
+                      <span key={loc.id} className="inline-block px-2.5 py-1 bg-[#e8f1e6] border border-[#c3d4c3] rounded-lg text-xs font-bold text-[#1b3d27]">
+                        {t(loc.name)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -160,6 +234,47 @@ export default function SummaryPage() {
               <div className="text-sm text-[#4a5749]">{t('None detected for this case.')}</div>
             )}
           </div>
+          
+          {isGeneratingAyurveda && (
+            <div className="mt-6 rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5 text-center flex items-center justify-center gap-3">
+              <div className="animate-spin w-5 h-5 border-2 border-[#234e32] border-t-transparent rounded-full" />
+              <span className="text-sm font-bold text-[#1b3d27]">{t('Analyzing clinical reference points...')}</span>
+            </div>
+          )}
+
+          {!isGeneratingAyurveda && ayurvedaReferences && ayurvedaReferences.length > 0 && (
+            <div className="mt-6 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] p-5">
+              <h4 className="text-xs font-extrabold text-[#234e32] uppercase tracking-widest mb-3">{t('Ayurveda Clinical Reference')}</h4>
+              {ayurvedaReferences.map((ref, i) => (
+                <div key={i} className="mb-4 last:mb-0">
+                  <div className="text-sm text-[#6b7c6e] mb-0.5">{t('Possible terminology:')}</div>
+                  <div className="text-lg font-bold text-[#1b3d27]">
+                    {ref.term} ({ref.termHindi})
+                  </div>
+                  <div className="text-sm text-[#4a5749] mt-1.5">
+                    <strong className="text-[#1c241e]">{t('Based on:')}</strong> {ref.basis.join(' + ')}
+                  </div>
+                </div>
+              ))}
+              <div className="mt-4 pt-3 border-t border-[#ded5c2]/60 flex items-start gap-2 text-xs font-bold text-[#6f4827]">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{t('Clinical reference only. Final assessment by physician.')}</span>
+              </div>
+            </div>
+          )}
+
+          {(isGeneratingSafety || hasMedicationSafetyAlerts) && (
+            <div className="mt-6 rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
+              <h4 className="text-xs font-extrabold text-[#829277] uppercase tracking-widest mb-2">{t('Medication Safety')}</h4>
+              <div className="flex items-center gap-2 text-sm font-bold text-[#1b3d27]">
+                {isGeneratingSafety ? (
+                  <><div className="animate-spin w-4 h-4 border-2 border-[#234e32] border-t-transparent rounded-full" /> {t('Analyzing medication history...')}</>
+                ) : (
+                  <><CheckCircle2 size={18} className="text-[#234e32]" /> {t('Your reported medicines will be reviewed by the healthcare professional.')}</>
+                )}
+              </div>
+            </div>
+          )}
           
           <div className="mt-6 rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
             <h4 className="text-xs font-extrabold text-[#829277] uppercase tracking-widest mb-3">{t('Patient Interview Transcript')}</h4>
@@ -201,3 +316,4 @@ export default function SummaryPage() {
     </AyurvedaBackground>
   );
 }
+

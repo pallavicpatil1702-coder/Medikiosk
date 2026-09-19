@@ -14,6 +14,7 @@ export default function CompletePage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { sync } = useSync();
+  const { currentUser } = useAuth();
   const savedRef = useRef(false);
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'sync_error'>('syncing');
   const [retrying, setRetrying] = useState(false);
@@ -25,6 +26,13 @@ export default function CompletePage() {
       if (result && result.success) {
         console.log('Session successfully synced to Firestore as completed');
         setSyncStatus('synced');
+        setTimeout(() => {
+          // If they are an anonymous kiosk user, auto-redirect to the live queue
+          // If they are an authenticated patient, don't auto-redirect, let them choose
+          if (currentUser?.isAnonymous) {
+            router.push('/patient/queue');
+          }
+        }, 1500);
       } else {
         console.error('Failed to sync session to Firestore:', result?.error);
         setSyncStatus('sync_error');
@@ -54,7 +62,11 @@ export default function CompletePage() {
 
   const handleReturnHome = () => {
     clearSession();
-    window.location.href = '/';
+    window.location.href = '/patient';
+  };
+  
+  const handleViewDashboard = () => {
+    router.push('/patient/dashboard');
   };
 
   return (
@@ -102,20 +114,32 @@ export default function CompletePage() {
               </button>
             )}
 
-            <button 
-              onClick={handleStartNew} 
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
-            >
-              <PlusCircle size={18} />
-              <span>{t('Start New Consultation')}</span>
-            </button>
-            <button 
-              onClick={handleReturnHome} 
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
-            >
-              <Home size={18} />
-              <span>{t('Return to Home')}</span>
-            </button>
+            {currentUser && !currentUser.isAnonymous ? (
+              <button 
+                onClick={handleViewDashboard} 
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+              >
+                <Home size={18} />
+                <span>{t('Return to Dashboard')}</span>
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={handleStartNew} 
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+                >
+                  <PlusCircle size={18} />
+                  <span>{t('Start New Consultation')}</span>
+                </button>
+                <button 
+                  onClick={handleReturnHome} 
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
+                >
+                  <Home size={18} />
+                  <span>{t('Return to Kiosk Home')}</span>
+                </button>
+              </>
+            )}
           </div>
           
           <div className="mt-12 bg-[#f8f5ee] p-5 rounded-2xl border border-[#ded5c2] text-left w-full">

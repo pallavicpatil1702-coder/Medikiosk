@@ -31,7 +31,7 @@ export default function HistoryPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title={t('Clinical History')} backHref="/patient/questions" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={9} total={12} />
+        <ProgressBar current={10} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Review Structured History')}</h2>
           <p className="text-[#556358] text-sm">{t('Review the structured information before sending to the doctor.')}</p>
@@ -96,3 +96,4 @@ export default function HistoryPage() {
     </AyurvedaBackground>
   );
 }
+

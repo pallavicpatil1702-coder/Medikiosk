@@ -2,17 +2,21 @@
 
 import Header from '@/components/Header';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
-import { AlertTriangle, Stethoscope, Pill, ShieldAlert, Clock, CheckCircle2, FileText, Edit3, ArrowRight, User } from 'lucide-react';
+import { AlertTriangle, Stethoscope, ShieldAlert, User, Clock, Activity, FileText, CheckCircle2, FileSignature, Loader2, Pill, ArrowRight, Edit3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getSession, updateSession } from '@/lib/store/store';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { ClinicalSummary } from '@/lib/types';
+import type { ClinicalSummary, AyurvedaReference, MedicationSafetyAlert } from '@/lib/types';
 import DoctorSummaryAudio from '@/components/DoctorSummaryAudio';
 import { normalizeClinicalSummaryToEnglish, buildSpokenClinicalSummary } from '@/lib/clinicalSummaryTranslator';
 
 export default function PatientReviewPage({ params }: { params: { id: string } }) {
   const [summary, setSummary] = useState<ClinicalSummary | null>(null);
+  const [structuredSummary, setStructuredSummary] = useState<any>(null);
+  const [ayurvedaReferences, setAyurvedaReferences] = useState<AyurvedaReference[] | null>(null);
+  const [medicationSafetyAlerts, setMedicationSafetyAlerts] = useState<MedicationSafetyAlert[] | null>(null);
+  const [summaryStatus, setSummaryStatus] = useState<string>('pending');
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -25,6 +29,10 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
       // 1. Check local active session
       if (session?.clinicalSummary && (session.clinicalSummary.patientId === params.id || session.firestoreSessionId === params.id || (session as any).id === params.id)) {
         setSummary(session.clinicalSummary);
+        setStructuredSummary(session.structuredPhysicianSummary || null);
+        setAyurvedaReferences(session.ayurvedaReferences || null);
+        setMedicationSafetyAlerts((session as any).medicationSafetyAlerts || null);
+        setSummaryStatus(session.physicianSummaryStatus || 'pending');
         setConfirmed(session.clinicalSummary.status === 'confirmed');
         setLoading(false);
         return;
@@ -62,6 +70,9 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
           };
 
           setSummary(loadedSummary);
+          setStructuredSummary(data.structuredPhysicianSummary || null);
+          setAyurvedaReferences(data.ayurvedaReferences || null);
+          setSummaryStatus(data.physicianSummaryStatus || 'pending');
           setConfirmed(data.status === 'confirmed' || data.doctorDecision === 'accepted');
         } else {
           setNotFound(true);
@@ -90,6 +101,41 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
     } catch (err) {
       console.warn('Local save only:', err);
       alert('Changes confirmed locally.');
+    }
+  };
+
+  const handleAyurvedaAction = async (idx: number, action: 'accepted' | 'rejected' | 'edited') => {
+    if (!ayurvedaReferences) return;
+    const newRefs = [...ayurvedaReferences];
+    newRefs[idx].status = action;
+    setAyurvedaReferences(newRefs);
+
+    try {
+      const docRef = doc(db, 'patientSessions', params.id);
+      await updateDoc(docRef, {
+        ayurvedaReferences: newRefs
+      });
+    } catch (err) {
+      console.error('Failed to save ayurveda reference action:', err);
+    }
+  };
+
+  const handleSafetyAction = async (idx: number, action: 'acknowledged' | 'dismissed') => {
+    if (!medicationSafetyAlerts) return;
+    const newAlerts = [...medicationSafetyAlerts];
+    newAlerts[idx].status = action;
+    newAlerts[idx].clinicianAction = action;
+    newAlerts[idx].reviewedAt = new Date().toISOString();
+    setMedicationSafetyAlerts(newAlerts);
+
+    try {
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+      const docRef = doc(db, 'patientSessions', id);
+      await updateDoc(docRef, {
+        medicationSafetyAlerts: newAlerts
+      });
+    } catch (err) {
+      console.error('Failed to save medication safety action:', err);
     }
   };
 
@@ -130,19 +176,22 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
     );
   }
 
-  const englishSummary = normalizeClinicalSummaryToEnglish(summary);
-  const spokenText = buildSpokenClinicalSummary({
-    patientName: englishSummary.patient?.name,
-    patientAge: englishSummary.patient?.age,
-    patientGender: englishSummary.patient?.gender,
-    chiefComplaint: englishSummary.history.chiefComplaint,
-    duration: englishSummary.history.duration,
-    associatedSymptoms: englishSummary.history.associatedSymptoms,
-    medications: englishSummary.medications,
-    allergies: englishSummary.allergies,
-    pastHistory: englishSummary.pastHistory,
-    redFlags: englishSummary.redFlags
-  });
+  const s = structuredSummary || {};
+  
+  const spokenText = s.clinicalHandoff 
+    ? s.clinicalHandoff 
+    : buildSpokenClinicalSummary({
+        patientName: summary.patient?.name,
+        patientAge: summary.patient?.age,
+        patientGender: summary.patient?.gender,
+        chiefComplaint: s.chiefComplaint || summary.history.chiefComplaint,
+        duration: s.durationOnset || summary.history.duration,
+        associatedSymptoms: s.associatedSymptoms || summary.history.associatedSymptoms,
+        medications: s.medicines || summary.medications,
+        allergies: summary.allergies, // UI allergies fallback
+        pastHistory: s.relevantHistory || summary.pastHistory,
+        redFlags: summary.redFlags
+      });
 
   return (
     <AyurvedaBackground variant="kiosk">
@@ -158,7 +207,7 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
           <DoctorSummaryAudio
             textToSpeak={spokenText}
             patientId={params.id}
-            patientName={englishSummary.patient?.name}
+            patientName={summary.patient?.name}
           />
         </div>
 
@@ -168,41 +217,147 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
             <div className="grid sm:grid-cols-3 gap-4 mb-8">
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Name</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.name}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.name}</div>
               </div>
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Age</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.age || '—'}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.age || '—'}</div>
               </div>
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-4">
                 <div className="text-xs font-bold text-[#829277] uppercase">Gender</div>
-                <div className="font-bold text-base text-[#1c241e] mt-1">{englishSummary.patient.gender || '—'}</div>
+                <div className="font-bold text-base text-[#1c241e] mt-1">{summary.patient.gender || '—'}</div>
               </div>
             </div>
 
-            <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Chief Complaint (English)</h3>
-            <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5 mb-6">
-              <div className="font-serif font-bold text-xl text-[#1b3d27] mb-1">{englishSummary.history.chiefComplaint || 'None'}</div>
-              <div className="text-xs text-[#3e4a3f]"><strong>Duration:</strong> {englishSummary.history.duration || 'Not specified'}</div>
-            </div>
+            {s.clinicalHandoff ? (
+              <>
+                <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Physician Clinical Handoff</h3>
+                <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5 mb-6 text-base text-[#1c241e] leading-relaxed whitespace-pre-wrap">
+                  {s.clinicalHandoff}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Chief Complaint (English)</h3>
+                <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5 mb-6">
+                  <div className="font-serif font-bold text-xl text-[#1b3d27] mb-1">{s.chiefComplaint || summary.history.chiefComplaint || 'None'}</div>
+                  <div className="text-xs text-[#3e4a3f]"><strong>Duration:</strong> {s.durationOnset || summary.history.duration || 'Not specified'}</div>
+                  <div className="text-xs text-[#3e4a3f] mt-1"><strong>Affected Area:</strong> {s.affectedArea || 'Not specified'}</div>
+                </div>
 
-            <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">History of Present Illness</h3>
-            <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5 mb-6">
-              <div className="font-bold text-sm text-[#1c241e] mb-1">Associated Symptoms:</div>
-              <div className="text-sm text-[#556358]">{englishSummary.history.associatedSymptoms?.join(', ') || 'None reported'}</div>
-            </div>
+                <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">History of Present Illness</h3>
+                <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5 mb-6">
+                  <div className="font-bold text-sm text-[#1c241e] mb-1">Associated Symptoms:</div>
+                  <div className="text-sm text-[#556358]">{s.associatedSymptoms?.join(', ') || summary.history.associatedSymptoms?.join(', ') || 'None reported'}</div>
+                </div>
 
-            <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Medications & Allergies</h3>
-            <div className="grid sm:grid-cols-2 gap-4 mb-6">
-              <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
-                <div className="text-xs font-bold text-[#829277] uppercase mb-1">Medications</div>
-                <div className="font-bold text-sm text-[#1c241e]">{englishSummary.medications}</div>
-              </div>
-              <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
-                <div className="text-xs font-bold text-[#829277] uppercase mb-1">Allergies</div>
-                <div className="font-bold text-sm text-[#1c241e]">{englishSummary.allergies}</div>
-              </div>
-            </div>
+                <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Medications & Allergies</h3>
+                <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                  <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
+                    <div className="text-xs font-bold text-[#829277] uppercase mb-1">Medications</div>
+                    <div className="font-bold text-sm text-[#1c241e]">{s.medicines || summary.medications}</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
+                    <div className="text-xs font-bold text-[#829277] uppercase mb-1">Allergies</div>
+                    <div className="font-bold text-sm text-[#1c241e]">{summary.allergies}</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {ayurvedaReferences && ayurvedaReferences.length > 0 && (
+              <>
+                <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Ayurveda Clinical Reference</h3>
+                <div className="rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] p-5 mb-6">
+                  {ayurvedaReferences.map((ref, i) => (
+                    <div key={i} className="mb-5 last:mb-0 pb-5 last:pb-0 border-b border-[#ded5c2]/60 last:border-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="text-lg font-bold text-[#1b3d27]">
+                            {ref.term} ({ref.termHindi})
+                          </div>
+                          <div className="text-[10px] text-[#6f4827] mt-0.5 font-bold flex items-center gap-1.5 uppercase">
+                            <AlertTriangle size={12} />
+                            AI Reference Suggestion
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAyurvedaAction(i, 'accepted')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                              ref.status === 'accepted' ? 'bg-[#234e32] text-white' : 'bg-white border border-[#ded5c2] text-[#234e32] hover:bg-[#e8f1e6]'
+                            }`}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleAyurvedaAction(i, 'rejected')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                              ref.status === 'rejected' ? 'bg-[#b83b3b] text-white' : 'bg-white border border-[#ded5c2] text-[#b83b3b] hover:bg-[#fff5f5]'
+                            }`}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-sm text-[#4a5749]">
+                        <strong className="text-[#1c241e]">Basis:</strong> {ref.basis.join(' + ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {medicationSafetyAlerts && medicationSafetyAlerts.length > 0 && (
+              <>
+                <h3 className="text-xl font-serif font-bold text-[#92400e] mb-4 flex items-center gap-2">
+                  <ShieldAlert size={20} />
+                  Medication & Herb Safety Review
+                </h3>
+                <div className="rounded-2xl bg-[#fffbeb] border border-[#fcd34d] p-5 mb-6">
+                  {medicationSafetyAlerts.map((alert, i) => (
+                    <div key={i} className="mb-5 last:mb-0 pb-5 last:pb-0 border-b border-[#fcd34d]/60 last:border-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="text-lg font-bold text-[#92400e]">
+                            {alert.itemA} + {alert.itemB}
+                          </div>
+                          <div className="text-[10px] text-[#b45309] mt-0.5 font-bold uppercase tracking-wider">
+                            Potential {alert.interactionType.replace('-', ' ')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleSafetyAction(i, 'acknowledged')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                              alert.status === 'acknowledged' ? 'bg-[#92400e] text-white' : 'bg-white border border-[#fcd34d] text-[#92400e] hover:bg-[#fef3c7]'
+                            }`}
+                          >
+                            Acknowledge
+                          </button>
+                          <button
+                            onClick={() => handleSafetyAction(i, 'dismissed')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                              alert.status === 'dismissed' ? 'bg-[#9ca3af] text-white' : 'bg-white border border-[#d1d5db] text-[#4b5563] hover:bg-[#f3f4f6]'
+                            }`}
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-sm text-[#78350f] mb-1">
+                        <strong>Concern:</strong> {alert.concern}
+                      </div>
+                      <div className="text-xs text-[#92400e]">
+                        <strong>Evidence:</strong> {alert.evidenceNote} <br/>
+                        <span className="opacity-75">Source: {alert.source}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             <h3 className="text-xl font-serif font-bold text-[#1b3d27] mb-4">Investigation Results</h3>
             <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5 mb-6 whitespace-pre-wrap text-xs font-mono text-[#3e4a3f]">

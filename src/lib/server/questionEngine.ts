@@ -32,7 +32,7 @@ export async function processQuestionEngine(session: PatientSession) {
   // If no active modules and no completed modules, we are identifying the modules
   if (activeModules.length === 0 && completedModules.length === 0) {
     const clarificationAnswers = newAnswers.filter(a => a.moduleId === 'clarification');
-    const fullContext = [session.chiefComplaint, ...clarificationAnswers.map(a => a.answer)].filter(Boolean).join('. ');
+    const fullContext = [session.chiefComplaint, ...clarificationAnswers.map(a => a.normalizedEnglishText || a.answer)].filter(Boolean).join('. ');
 
     if (clarificationAnswers.length >= 2) {
       // Maximum clarification attempts reached. Show manual selection.
@@ -60,7 +60,7 @@ export async function processQuestionEngine(session: PatientSession) {
     }
 
     console.log('[QuestionEngine] Identifying modules via AI for context:', fullContext);
-    const result = await resolveComplaintContext(fullContext, questionBank);
+    const result = await resolveComplaintContext(fullContext, questionBank, session.bodyLocations);
     
     if (result.needsClarification && result.clarificationQuestion && clarificationAnswers.length < 2) {
        console.log('[QuestionEngine] AI requests clarification:', result.clarificationQuestion.text);
@@ -93,6 +93,26 @@ export async function processQuestionEngine(session: PatientSession) {
           inputMethod: 'text', // Inferred from chief complaint
           timestamp: new Date().toISOString()
         });
+      }
+    }
+  }
+
+  // 3. Deterministically skip generic location questions if Body Map data exists
+  if (session.bodyLocations && session.bodyLocations.length > 0) {
+    const locationsStr = session.bodyLocations.map(l => l.name).join(', ');
+    // These are the questions that ask "Where is the pain?" or "Which part?"
+    const locationQuestionIds = ['ABD_001', 'HED_003', 'BAK_002', 'JNT_002'];
+    
+    for (const qId of locationQuestionIds) {
+      if (!knownFacts.find(a => a.questionId === qId) && !newAnswers.find(a => a.questionId === qId)) {
+        knownFacts.push({
+          questionId: qId,
+          moduleId: 'body_map',
+          answer: locationsStr,
+          inputMethod: 'text',
+          timestamp: new Date().toISOString()
+        });
+        console.log(`[QuestionEngine] Pre-filled ${qId} using Body Map data: ${locationsStr}`);
       }
     }
   }
@@ -177,7 +197,8 @@ function deterministicTraverse(activeModules: string[], completedModules: string
       if (qDef.branch) {
         // e.g. branch: { "yes": "FEV_004", "no": "FEV_005" }
         // We normalize answer to lowercase for branch matching
-        const ansNormalized = existingAnswer.answer.toLowerCase();
+        const ansToEvaluate = existingAnswer.normalizedEnglishText || existingAnswer.answer;
+        const ansNormalized = ansToEvaluate.toLowerCase();
         let branched = false;
         for (const [key, nextQ] of Object.entries(qDef.branch)) {
           const keyLower = key.toLowerCase();
@@ -230,10 +251,18 @@ function deterministicTraverse(activeModules: string[], completedModules: string
   return { action: 'MODULE_END', activeModules, completedModules, newAnswers: answers, knownFacts };
 }
 
-async function resolveComplaintContext(complaintContext: string, questionBank: QuestionBank) {
+async function resolveComplaintContext(complaintContext: string, questionBank: QuestionBank, bodyLocations?: any[]) {
   const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY || '',
   });
+
+  // Include body locations in the context if they exist
+  let enhancedContext = complaintContext;
+  let hasBodyLocations = bodyLocations && bodyLocations.length > 0;
+  if (hasBodyLocations) {
+    const locationsStr = bodyLocations!.map((l: any) => l.name).join(', ');
+    enhancedContext += ` (Locations previously selected on body map: ${locationsStr})`;
+  }
 
   // We must provide the AI with the ACTUAL questions for the modules so it can accurately extract facts!
   const availableModulesInfo = Object.keys(questionBank.modules).map(key => {
@@ -249,7 +278,7 @@ async function resolveComplaintContext(complaintContext: string, questionBank: Q
   });
 
   const prompt = `You are a medical intake routing assistant.
-Patient's Complaint Context: "${complaintContext}"
+Patient's Complaint Context: "${enhancedContext}"
 
 Available Modules and their questions:
 ${JSON.stringify(availableModulesInfo, null, 2)}
@@ -258,7 +287,7 @@ Instructions:
 1. Analyze the complaint context. Is it a SPECIFIC complaint (e.g., chest pain, productive cough, stomach ache, headache, "pet me dard") or a GENERIC/AMBIGUOUS complaint (e.g., "pain", "vedna", "swelling", "weakness", "dard") where the body location or exact nature is missing?
 2. DO NOT route to a specific module if the location is ambiguous. For example, "pain" could be chest, abdominal, back, or joint. You must clarify if location is unspecified. But if a specific location is mentioned (like "pet", "stomach", "head", "chest"), DO NOT ask for clarification.
 3. If the complaint is ambiguous/missing context, set "needsClarification": true, "confidence": "low", and provide a "clarificationQuestion" (id: "CLARIFY_001", type: "free_text") asking for the missing context in English, Hindi, and Marathi.
-4. If the complaint context is specific enough (or clarification was provided resolving ambiguity), set "needsClarification": false, "confidence": "high", and identify the relevant module IDs in the "modules" array.
+4. If the complaint context is specific enough, set "needsClarification": false, "confidence": "high", and identify the relevant module IDs in the "modules" array. STRICTLY ONLY select the primary module that matches the complaint. Do NOT select related but unmentioned modules (e.g. if they say "neck pain", only select back_pain, DO NOT select headache unless they explicitly say "headache"). Maximum 1-2 modules.
 5. If the patient explicitly provided specific answers that map to questions in the identified modules (e.g. if they said "stomach ache", extract "stomach" for the "Where is the pain" question), extract them into the "extractedAnswers" array (with questionId, moduleId, and answer text). This is crucial to avoid asking redundant questions. DO NOT guess or hallucinate answers that were not mentioned.
 
 Output ONLY a JSON object:
@@ -283,7 +312,7 @@ Output ONLY a JSON object:
   try {
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'llama3-70b-8192',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.1,
       response_format: { type: 'json_object' },
     });
@@ -327,9 +356,12 @@ Output ONLY a JSON object:
     
     // AMBIGUITY CHECK (Fallback)
     const isGenericPain = (textLower.includes('pain') || textLower.includes('dard') || textLower.includes('vedna'));
-    const hasLocation = textLower.includes('chest') || textLower.includes('pet') || textLower.includes('stomach') || textLower.includes('sir') || textLower.includes('head') || textLower.includes('kamar') || textLower.includes('back') || textLower.includes('potat') || textLower.includes('chhatit') || textLower.includes('dokyat') || textLower.includes('kambaret') || textLower.includes('sandhyat') || textLower.includes('gudghyat') || textLower.includes('paat') || textLower.includes('gale') || textLower.includes('throat');
+    const hasLocationText = textLower.includes('chest') || textLower.includes('pet') || textLower.includes('stomach') || textLower.includes('sir') || textLower.includes('head') || textLower.includes('kamar') || textLower.includes('back') || textLower.includes('potat') || textLower.includes('chhatit') || textLower.includes('dokyat') || textLower.includes('kambaret') || textLower.includes('sandhyat') || textLower.includes('gudghyat') || textLower.includes('paat') || textLower.includes('gale') || textLower.includes('throat');
     
-    if (isGenericPain && !hasLocation) {
+    // If we have body locations, the location is NOT ambiguous.
+    const isAmbiguous = isGenericPain && !hasLocationText && !hasBodyLocations;
+    
+    if (isAmbiguous) {
        return {
          needsClarification: true,
          clarificationQuestion: {

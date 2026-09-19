@@ -126,6 +126,48 @@ export const syncSessionToFirestore = async (
       }));
     };
 
+    let queueFields: any = {};
+    if (status === 'completed' || status === 'submitted') {
+      const hasEmergency = session.redFlags?.some(r => r.severity === 'high');
+      const hasHigh = session.redFlags?.some(r => r.severity === 'medium');
+      const queuePriority = hasEmergency ? 'emergency' : (hasHigh ? 'high' : 'normal');
+      const queuePriorityScore = hasEmergency ? 100 : (hasHigh ? 50 : 0);
+      
+      queueFields = {
+        queueStatus: session.queueStatus || 'waiting',
+        queuePriority,
+        queuePriorityScore,
+        nurseStatus: session.nurseStatus || 'pending',
+        doctorStatus: session.doctorStatus || 'pending',
+      };
+      
+      // Only set queueJoinedAt and queueTokenNumber if not already assigned
+      if (!session.queueJoinedAt) {
+        queueFields.queueJoinedAt = serverTimestamp();
+      }
+      if (!session.queueTokenNumber) {
+        try {
+          // Get today's start at midnight
+          const startOfDay = new Date();
+          startOfDay.setHours(0, 0, 0, 0);
+          
+          // Query all sessions that joined the queue today
+          const sessionsQuery = query(
+            collection(db, 'patientSessions'),
+            where('queueJoinedAt', '>=', startOfDay)
+          );
+          const snapshot = await getDocs(sessionsQuery);
+          
+          // Token number is sequential count of today's patients + 1
+          queueFields.queueTokenNumber = `#${snapshot.size + 1}`;
+        } catch (e) {
+          console.error("Failed to generate sequential token:", e);
+          // Fallback to random if index is missing or query fails
+          queueFields.queueTokenNumber = `#${Math.floor(100 + Math.random() * 900)}`;
+        }
+      }
+    }
+
     if (session.firestoreSessionId) {
       try {
         // Update existing session document
@@ -135,13 +177,15 @@ export const syncSessionToFirestore = async (
           patient: safeData(session.patient),
           language: session.patient?.language || 'en',
           chiefComplaint: session.chiefComplaint || '',
+          originalChiefComplaint: session.originalChiefComplaint || '',
           answers: safeData(session.answers || []),
           documents: safeData(sanitizedDocuments),
           redFlags: safeData(session.redFlags || []),
           summary: safeData(session.clinicalSummary),
           consent: safeData(session.consent),
           status: status === 'completed' ? 'pending_review' : status,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          ...queueFields
         });
         updateLocalSession({ syncStatus: 'synced' });
         console.log('[Session Sync] write success = true (Updated session: ' + session.firestoreSessionId + ')');
@@ -159,6 +203,7 @@ export const syncSessionToFirestore = async (
       patient: safeData(session.patient),
       language: session.patient?.language || 'en',
       chiefComplaint: session.chiefComplaint || '',
+      originalChiefComplaint: session.originalChiefComplaint || '',
       answers: safeData(session.answers || []),
       documents: safeData(sanitizedDocuments),
       redFlags: safeData(session.redFlags || []),
@@ -167,7 +212,8 @@ export const syncSessionToFirestore = async (
       status: status === 'completed' ? 'pending_review' : status,
       triageStatus: 'pending_review',
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      ...queueFields
     });
     
     // Save the generated ID back to local storage

@@ -254,6 +254,7 @@ export function buildSpokenClinicalSummary(data: {
   patientAge?: number | string;
   patientGender?: string;
   chiefComplaint: string;
+  bodyLocations?: string[];
   duration?: string;
   associatedSymptoms?: string[];
   medications?: string;
@@ -274,6 +275,9 @@ export function buildSpokenClinicalSummary(data: {
   // Chief Complaint & Duration
   if (data.chiefComplaint) {
     let cc = `Chief Complaint: ${data.chiefComplaint}.`;
+    if (data.bodyLocations && data.bodyLocations.length > 0) {
+      cc += ` Affected areas: ${data.bodyLocations.join(', ')}.`;
+    }
     if (data.duration && data.duration !== 'Not specified' && data.duration !== 'Reported during intake') {
       cc += ` Duration: ${data.duration}.`;
     }

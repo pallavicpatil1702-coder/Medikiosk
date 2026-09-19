@@ -21,8 +21,23 @@ import {
   Leaf
 } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function MediKioskMainLanding() {
+  const { currentUser, role, isAnonymous, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && currentUser && !isAnonymous && role) {
+      if (role === 'patient') router.replace('/patient/dashboard');
+      else if (role === 'doctor') router.replace('/doctor/dashboard');
+      else if (role === 'nurse') router.replace('/nurse/dashboard');
+      else if (role === 'admin') router.replace('/admin/dashboard');
+    }
+  }, [currentUser, role, isAnonymous, loading, router]);
+
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyStreak - Build Consistent Study Habits</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <h1 class="logo">StudyStreak</h1>
+            <ul class="nav-links">
+                <li><a href="#hero">Home</a></li>
+                <li><a href="#problem">Problem</a></li>
+                <li><a href="#solution">Solution</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#tech-stack">Tech Stack</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#team">Team</a></li>
+                <li><a href="#demo">Demo</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero" class="section">
+        <div class="hero-content">
+            <h1 class="hero-title">StudyStreak</h1>
+            <p class="hero-tagline">Build consistent study habits and track your daily streaks to ace your goals!</p>
+            <a href="#demo" class="cta-button">Try the Demo</a>
+        </div>
+    </section>
+
+    <!-- Problem Statement -->
+    <section id="problem" class="section">
+        <div class="container">
+            <h2>The Problem</h2>
+            <p>Many students struggle with maintaining consistent study habits. Distractions, lack of motivation, and poor tracking lead to inconsistent progress, missed deadlines, and burnout. Without a simple way to visualize and reward daily effort, building streaks becomes nearly impossible.</p>
+        </div>
+    </section>
+
+    <!-- Solution Overview -->
+    <section id="solution" class="section">
+        <div class="container">
+            <h2>Our Solution</h2>
+            <p>StudyStreak is a user-friendly web app that gamifies studying by tracking daily streaks. Log your study sessions, view your progress, and stay motivated with visual rewards. It's designed for students, by students, to make consistency fun and achievable.</p>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2>Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fas fa-calendar-check feature-icon"></i>
+                    <h3>Streak Tracking</h3>
+                    <p>Monitor your daily study streaks and never lose momentum.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-chart-line feature-icon"></i>
+                    <h3>Progress Visualization</h3>
+                    <p>View charts and stats to see your improvement over time.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-bell feature-icon"></i>
+                    <h3>Reminders</h3>
+                    <p>Get gentle notifications to keep your study routine on track.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-mobile-alt feature-icon"></i>
+                    <h3>Mobile Friendly</h3>
+                    <p>Access your streaks anywhere with a responsive design.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section id="tech-stack" class="section">
+        <div class="container">
+            <h2>Tech Stack</h2>
+            <ul class="tech-list">
+                <li><strong>Frontend:</strong> HTML, CSS, JavaScript</li>
+                <li><strong>Storage:</strong> LocalStorage for client-side data</li>
+                <li><strong>Design:</strong> Responsive with dark theme and gradients</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="section">
+        <div class="container">
+            <h2>How It Works</h2>
+            <ol class="steps">
+                <li>Sign up and set your study goals.</li>
+                <li>Log each study session daily.</li>
+                <li>Watch your streak grow and earn badges.</li>
+                <li>Stay motivated with progress insights.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="section">
+        <div class="container">
+            <h2>Our Team</h2>
+            <div class="team-grid">
+                <div class="team-member">
+                    <img src="https://via.placeholder.com/150" alt="Team Member 1">
+                    <h3>Alice Johnson</h3>
+                    <p>Frontend Developer</p>
+                </div>
+                <div class="team-member">
+                    <img src="https://via.placeholder.com/150" alt="Team Member 2">
+                    <h3>Bob Smith</h3>
+                    <p>Backend Developer</p>
+                </div>
+                <div class="team-member">
+                    <img src="https://via.placeholder.com/150" alt="Team Member 3">
+                    <h3>Charlie Lee</h3>
+                    <p>Designer</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo / Contact Section -->
+    <section id="demo" class="section">
+        <div class="container">
+            <h2>Demo & Contact</h2>
+            <div class="demo-container">
+                <h3>Try the Streak Counter Demo</h3>
+                <p>Click "I Studied Today" to log a session and track your streak!</p>
+                <div id="streak-display">
+                    <p>Current Streak: <span id="streak-count">0</span> days</p>
+                    <p>Last Studied: <span id="last-date">Never</span></p>
+                </div>
+                <button id="study-button" class="cta-button">I Studied Today</button>
+            </div>
+            <div class="contact">
+                <h3>Get in Touch</h3>
+                <p>Email: team@studystreak.com</p>
+                <p>GitHub: <a href="#">StudyStreak Repo</a></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2023 StudyStreak. Built for Hackathon.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

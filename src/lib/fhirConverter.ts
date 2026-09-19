@@ -101,7 +101,9 @@ export function generateRealFHIRResources(session: any): FHIRResource[] {
       },
       subject: { reference: `Patient/patient-${patientId}` },
       effectiveDateTime: generatedAt,
-      valueString: session.chiefComplaint
+      valueString: session.bodyLocations && session.bodyLocations.length > 0
+        ? `${session.chiefComplaint} (Affected Areas: ${session.bodyLocations.map((b: any) => b.name || b.id).join(', ')})`
+        : session.chiefComplaint
     });
   }
 

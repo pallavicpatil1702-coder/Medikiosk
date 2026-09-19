@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
 import type { Answer, RedFlag, Question, PatientSession } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
-import { useWebSpeech } from '@/hooks/useWebSpeech';
+import { useBhashiniVoice } from '@/hooks/useBhashiniVoice';
 import { useSync } from '@/hooks/useSync';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
@@ -17,10 +17,12 @@ export default function QuestionsPage() {
   const [chiefComplaint, setChiefComplaint] = useState<string | undefined>(undefined);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
+  const [normalizedAnswer, setNormalizedAnswer] = useState('');
   const [currentQ, setCurrentQ] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [redFlagAlert, setRedFlagAlert] = useState(false);
+  const [backHref, setBackHref] = useState('/patient/complaint');
   
   const router = useRouter();
   const { t, lang } = useTranslation();
@@ -30,12 +32,15 @@ export default function QuestionsPage() {
 
   const {
     isListening,
+    isProcessing,
     transcript,
+    normalizedText: voiceNormalized,
     error: speechError,
+    source: transcriptionSource,
     startListening,
     stopListening,
     reset,
-  } = useWebSpeech(lang);
+  } = useBhashiniVoice(lang);
 
   const fetchNextQuestion = async (session: PatientSession) => {
     setLoading(true);
@@ -92,17 +97,25 @@ export default function QuestionsPage() {
       setChiefComplaint(session.chiefComplaint);
       setAnswers(session.answers || []);
       fetchNextQuestion(session);
+
+      // Determine back link based on body map requirement
+      const lowerComplaint = session.chiefComplaint.toLowerCase();
+      const bodyMapKeywords = ['pain', 'ache', 'injury', 'hurt', 'swelling', 'discomfort', 'stomach', 'chest', 'back', 'joint', 'cramp', 'sore'];
+      if (bodyMapKeywords.some(keyword => lowerComplaint.includes(keyword))) {
+        setBackHref('/patient/body-map');
+      }
     }
   }, []);
 
-  const totalSteps = 8;
-  const progress = Math.min(answers.length + 1, totalSteps);
+  const totalSteps = 13;
+  const progress = Math.min(answers.length + 8, totalSteps);
 
   useEffect(() => {
-    if (transcript && !isListening) {
+    if (transcript && !isListening && !isProcessing) {
       setCurrentAnswer(transcript);
+      setNormalizedAnswer(voiceNormalized || transcript);
     }
-  }, [transcript, isListening]);
+  }, [transcript, isListening, isProcessing, voiceNormalized]);
 
   useEffect(() => {
     if (currentQ) {
@@ -123,13 +136,17 @@ export default function QuestionsPage() {
       questionId: currentQ.id, 
       moduleId: currentModule,
       questionText: qText, 
-      answer: val, 
+      answer: val,
+      originalTranscript: val,
+      normalizedEnglishText: normalizedAnswer,
+      transcriptionSource: transcriptionSource,
       timestamp: new Date().toISOString(),
       language: lang
     }];
     
     setAnswers(newAnswers);
     setCurrentAnswer('');
+    setNormalizedAnswer('');
     reset();
     
     const session = updateSession({ answers: newAnswers });
@@ -155,7 +172,7 @@ export default function QuestionsPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Adaptive Questions" backHref="/patient/complaint" />
+      <Header title="Adaptive Questions" backHref={backHref} />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={progress} total={totalSteps} />
         <div className="mb-6 flex items-center gap-3">
@@ -200,9 +217,12 @@ export default function QuestionsPage() {
             </div>
 
             {/* Conversation Log Box */}
-            <div className="bg-[#f8f5ee] rounded-2xl p-5 mb-6 border border-[#ded5c2]">
-              <h4 className="text-xs font-extrabold text-[#829277] uppercase tracking-widest mb-3">{t('Conversation')}</h4>
-              <div className="space-y-3 text-sm">
+            <details className="bg-[#f8f5ee] rounded-2xl mb-6 border border-[#ded5c2] group overflow-hidden">
+              <summary className="p-4 flex justify-between items-center cursor-pointer select-none outline-none list-none text-xs font-extrabold text-[#829277] uppercase tracking-widest hover:bg-[#ede8db] transition">
+                <span>{t('Previous Answers')}</span>
+                <span className="text-[10px] opacity-70 group-open:rotate-180 transition-transform duration-300">▼</span>
+              </summary>
+              <div className="p-5 pt-2 space-y-3 text-sm border-t border-[#ded5c2]/50 bg-[#fbf9f4]">
                 {chiefComplaint && (
                   <div className="flex gap-3">
                     <div className="w-7 h-7 rounded-full bg-[#e8e2d2] text-[#4d2f19] flex items-center justify-center text-xs font-extrabold shrink-0">🌿</div>
@@ -231,24 +251,28 @@ export default function QuestionsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </details>
 
             {/* Input Options / Free Text */}
             {currentQ.type === 'free_text' || currentQ.type === 'duration' || currentQ.type === 'number' || currentQ.type === 'text' || (!currentQ.options && !currentQ.choices && !currentQ.type.includes('yes_no')) ? (
               <div className="flex flex-col gap-3 mb-6">
                 <div className="flex gap-3">
-                  <input 
-                    type="text"
+                  <textarea 
+                    className="w-full rounded-2xl bg-white border border-[#ded5c2] p-5 focus:outline-none focus:ring-2 focus:ring-[#234e32] resize-none transition"
+                    rows={4}
+                    placeholder={t("e.g. It started a few days ago...")}
                     value={currentAnswer}
-                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                    className="flex-1 rounded-2xl border border-[#ded5c2] focus:border-[#234e32] bg-[#f8f5ee] text-[#1c241e] font-semibold px-5 py-3.5 text-base transition focus:outline-none focus:ring-3 focus:ring-[#234e32]/25" 
-                    placeholder={currentQ.example ? t(currentQ.example) : t('Or type your concern')}
+                    onChange={(e) => {
+                      setCurrentAnswer(e.target.value);
+                      setNormalizedAnswer(e.target.value);
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.currentTarget.value) {
-                        submitAnswer(e.currentTarget.value);
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        submitAnswer(currentAnswer);
                       }
                     }}
-                  />
+                  ></textarea>
                   <button 
                     onClick={() => submitAnswer(currentAnswer)}
                     disabled={!currentAnswer.trim()}
@@ -277,37 +301,46 @@ export default function QuestionsPage() {
 
             {/* Voice Input Section */}
             <div className="flex flex-col gap-3 pt-2 border-t border-[#ded5c2]">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center justify-center py-6">
                 <button 
-                  onClick={handleListen} 
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md transition focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 ${
-                    isListening ? 'bg-[#b83b3b] animate-listen text-white' : transcript ? 'bg-[#234e32] text-white' : 'bg-[#234e32] hover:bg-[#1a3b26] text-white'
-                  }`} 
-                  aria-label="Speak answer"
+                  onClick={handleListen}
+                  disabled={isProcessing}
+                  className={`mx-auto flex flex-col items-center justify-center p-8 sm:p-12 rounded-full transition shadow-lg relative ${
+                    isListening ? 'bg-[#ffebef] text-[#d63a4a] border-2 border-[#d63a4a] animate-pulse' : 
+                    isProcessing ? 'bg-[#e4ede1] text-[#556358] border-2 border-[#c7d9c2]' :
+                    'bg-[#e4ede1] text-[#234e32] border-2 border-transparent hover:bg-[#d5e3d0]'
+                  }`}
                 >
-                  <Mic size={24} />
+                  <Mic size={isProcessing ? 32 : 48} className={`mb-3 sm:mb-4 ${isListening ? 'animate-bounce' : isProcessing ? 'animate-spin' : ''}`} />
+                  <span className="font-bold text-lg sm:text-xl">
+                    {isListening ? t('Listening...') : isProcessing ? t('Processing...') : t('Tap to Speak')}
+                  </span>
                 </button>
-                <div className="text-sm font-medium flex-1">
+
+                <div className="mt-4 text-center">
                   {speechError ? (
-                    <div className="flex items-center gap-2 text-[#9a2c2c] font-bold"><AlertCircle size={16}/> {t(speechError)}</div>
+                    <div className="flex items-center gap-2 text-[#9a2c2c] font-bold justify-center"><AlertCircle size={16}/> {t(speechError)}</div>
                   ) : isListening ? (
                     <span className="text-[#b83b3b] font-bold animate-pulse-soft">{t('Listening...')}</span>
-                  ) : transcript ? (
-                    <div className="flex flex-col">
-                      <span className="text-[#6b7c6e] text-xs">{t('We heard:')}</span>
-                      <span className="text-[#1c241e] font-bold">"{transcript}"</span>
+                  ) : (transcript && !isListening && !isProcessing) ? (
+                    <div>
+                      <p className="text-xs font-semibold text-[#667768] uppercase tracking-wider mb-1">{t('We heard:')}</p>
+                      <p className="font-serif font-bold text-2xl text-[#1b3d27]">"{currentAnswer}"</p>
                     </div>
                   ) : (
-                    <span className="text-[#6b7c6e]">{t('Tap to Speak')}</span>
+                    <p className="text-[#6b7c6e] font-medium">{t('Tap the microphone to answer')}</p>
                   )}
                 </div>
+                
+                {(transcript && !isListening && !isProcessing || speechError) && (
+                  <div className="mt-6 flex gap-3.5 justify-center w-full max-w-xs">
+                    {(transcript && !isListening && !isProcessing) && (
+                      <button onClick={() => submitAnswer(transcript)} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
+                    )}
+                    <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#f8f5ee] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Try Again')}</button>
+                  </div>
+                )}
               </div>
-              {transcript && !isListening && (
-                 <div className="flex gap-2 mt-2">
-                   <button onClick={() => submitAnswer(transcript)} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
-                   <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#f8f5ee] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Try Again')}</button>
-                 </div>
-              )}
             </div>
           </div>
         )}

@@ -1,0 +1,5 @@
+{
+  "code": "400 BAD_REQUEST",
+  "message": "Error in fetching ulcaApiKey. Please check if it exists.",
+  "timestamp": "2026-09-17T10:18:59.891+00:00"
+}

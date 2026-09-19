@@ -54,7 +54,7 @@ export default function IdentifyPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Identify Yourself" backHref="/patient/language" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={3} total={12} />
+        <ProgressBar current={3} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Identify yourself')}</h2>
           <p className="text-[#556358] text-sm">{t('Select how you would like to begin. You can enter an ABHA ID or continue directly.')}</p>
@@ -152,3 +152,4 @@ export default function IdentifyPage() {
     </AyurvedaBackground>
   );
 }
+

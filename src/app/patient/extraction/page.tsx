@@ -63,7 +63,7 @@ export default function ExtractionPage() {
       <AyurvedaBackground variant="kiosk">
         <Header title="Medical Report Analysis" backHref="/patient/reports" />
         <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
-          <ProgressBar current={11} total={12} />
+          <ProgressBar current={12} total={13} />
           <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-12 text-center">
             <h2 className="text-3xl font-serif font-bold text-[#1b3d27] mb-3">{t('No Reports Found')}</h2>
             <p className="text-[#556358] mb-6">{t('You skipped uploading reports.')}</p>
@@ -84,7 +84,7 @@ export default function ExtractionPage() {
     <AyurvedaBackground variant="kiosk">
       <Header title="Medical Report Analysis" backHref="/patient/reports" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <ProgressBar current={11} total={12} />
+        <ProgressBar current={12} total={13} />
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Analyzing Medical Report...')}</h2>
           <p className="text-[#556358] text-sm">{t('AI tries to extract structured data from your uploaded document.')}</p>
@@ -218,3 +218,4 @@ export default function ExtractionPage() {
     </AyurvedaBackground>
   );
 }
+

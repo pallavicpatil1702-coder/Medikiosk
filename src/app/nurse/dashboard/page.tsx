@@ -33,6 +33,7 @@ import { auth, db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy, Timestamp } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import type { PatientSession, RedFlag } from '@/lib/types';
+import { useSmartQueue, QueuePatient } from '@/hooks/useSmartQueue';
 
 // Priority Classification deterministic helper
 export type TriagePriority = 'EMERGENCY' | 'HIGH' | 'NORMAL';
@@ -127,10 +128,12 @@ interface EnrichedSession extends PatientSession {
   priorityReason: string;
   waitingTimeStr: string;
   submitTimeStr: string;
+  queueTokenNumber?: string;
 }
 
 function NurseDashboardContent() {
   const { currentUser, role: userRole, logout } = useAuth();
+  const { queue, loading: queueLoading } = useSmartQueue();
   const [sessions, setSessions] = useState<EnrichedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -145,89 +148,48 @@ function NurseDashboardContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Real-time Firestore subscription to patientSessions
+  // Map smart queue to EnrichedSession format for the dashboard
   useEffect(() => {
-    setLoading(true);
+    if (queueLoading) return;
+    
+    // We only process if user is nurse role, else show permission error
+    if (userRole !== 'nurse') {
+      setPermissionError('Permission denied: You must be authenticated as a verified Triage Nurse to read the patient intake queue.');
+      setLoading(false);
+      return;
+    }
+
+    const list: EnrichedSession[] = queue.map((data) => {
+      const redFlags: RedFlag[] = data.redFlags || [];
+      const { priority, reason } = calculatePriority(redFlags);
+      const rawTime = data.createdAt || data.updatedAt;
+
+      return {
+        id: data.firestoreSessionId!,
+        patientId: data.patient?.id || data.firestoreSessionId!,
+        patient: data.patient,
+        language: data.language,
+        chiefComplaint: data.chiefComplaint || 'Not reported',
+        bodyLocations: data.bodyLocations || [],
+        triageNurseId: data.triageNurseId,
+        calculatedPriority: priority,
+        priorityReason: reason,
+        waitingTimeStr: formatWaitingTime(rawTime),
+        submitTimeStr: formatSubmitTime(rawTime),
+        ...data // preserve queue status fields and rest of the session
+      };
+    });
+
+    setSessions(list);
+    setLoading(false);
     setPermissionError(null);
 
-    const sessionsRef = collection(db, 'patientSessions');
-    
-    // Subscribe in real-time
-    const unsubscribe = onSnapshot(
-      sessionsRef,
-      (snapshot) => {
-        const list: EnrichedSession[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const redFlags: RedFlag[] = data.redFlags || [];
-          const { priority, reason } = calculatePriority(redFlags);
-          const rawTime = data.createdAt || data.updatedAt;
-
-          list.push({
-            id: docSnap.id,
-            patientId: data.patientId || docSnap.id,
-            patient: data.patient,
-            language: data.language,
-            chiefComplaint: data.chiefComplaint || 'Not reported',
-            answers: data.answers || [],
-            documents: data.documents || [],
-            redFlags: redFlags,
-            clinicalSummary: data.summary || data.clinicalSummary,
-            triageStatus: data.triageStatus || 'pending_review',
-            triageNote: data.triageNote || '',
-            triageTimestamp: data.triageTimestamp,
-            triageNurseId: data.triageNurseId,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-            calculatedPriority: priority,
-            priorityReason: reason,
-            waitingTimeStr: formatWaitingTime(rawTime),
-            submitTimeStr: formatSubmitTime(rawTime),
-          });
-        });
-
-        // Priority ordering: EMERGENCY first, then HIGH, then NORMAL
-        // Within same priority, oldest waiting time first (FIFO)
-        const priorityScore: Record<TriagePriority, number> = {
-          EMERGENCY: 3,
-          HIGH: 2,
-          NORMAL: 1
-        };
-
-        list.sort((a, b) => {
-          // If different priorities, higher priority first
-          if (priorityScore[b.calculatedPriority] !== priorityScore[a.calculatedPriority]) {
-            return priorityScore[b.calculatedPriority] - priorityScore[a.calculatedPriority];
-          }
-          // Sort by creation time ascending (longest waiting first)
-          const timeA = a.createdAt?.seconds || 0;
-          const timeB = b.createdAt?.seconds || 0;
-          return timeA - timeB;
-        });
-
-        setSessions(list);
-        setLoading(false);
-        setPermissionError(null);
-
-        // Update selected patient if already open
-        if (selectedPatient) {
-          const updated = list.find(s => s.id === selectedPatient.id);
-          if (updated) setSelectedPatient(updated);
-        }
-      },
-      (error) => {
-        console.error('Firestore onSnapshot error:', error);
-        setLoading(false);
-        if (error.code === 'permission-denied') {
-          setPermissionError('Permission denied: You must be authenticated as a verified Triage Nurse to read the patient intake queue.');
-        } else {
-          setPermissionError(error.message);
-        }
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userRole]);
+    // Update selected patient if already open
+    if (selectedPatient) {
+      const updated = list.find(s => s.id === selectedPatient.id);
+      if (updated) setSelectedPatient(updated);
+    }
+  }, [queue, queueLoading, userRole]);
 
   // Sync selected patient note state when patient is selected
   useEffect(() => {
@@ -283,12 +245,20 @@ function NurseDashboardContent() {
       const noteToSave = customNote !== undefined ? customNote : triageNote;
       
       // Strict RBAC payload: affectedKeys().hasOnly(['triageStatus', 'triageNote', 'triageTimestamp', 'triageNurseId'])
-      const payload = {
+      const payload: any = {
         triageStatus: newStatus,
         triageNote: noteToSave,
         triageTimestamp: new Date().toISOString(),
         triageNurseId: currentUser?.uid || 'nurse-station-1'
       };
+
+      if (newStatus === 'forwarded_to_physician') {
+        payload.queueStatus = 'doctor_review';
+        payload.nurseStatus = 'completed';
+      } else if (newStatus === 'reviewed' || newStatus === 'pending_review') {
+        payload.queueStatus = 'triage';
+        payload.nurseStatus = 'reviewing';
+      }
 
       await updateDoc(sessionRef, payload);
 
@@ -579,6 +549,9 @@ function NurseDashboardContent() {
                           <span className="text-xs px-2.5 py-0.5 rounded-lg bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] font-semibold">
                             {patient.patient?.age ? `${patient.patient.age} yrs` : 'Age: —'} • {patient.patient?.gender || '—'}
                           </span>
+                          <span className="text-[11px] font-mono font-bold text-[#1b3d27] bg-[#e4ede1] px-2 py-0.5 rounded-lg border border-[#c7d9c2]">
+                            Token: {patient.queueTokenNumber || '—'}
+                          </span>
                           <span className="text-[11px] font-mono text-[#829277]">
                             ID: {patient.patientId ? patient.patientId.slice(0, 8) : patient.id.slice(0, 8)}...
                           </span>
@@ -589,6 +562,16 @@ function NurseDashboardContent() {
                           <span className="text-[#556358] font-medium">Chief Complaint: </span>
                           <span className="text-[#234e32] font-bold">{patient.chiefComplaint}</span>
                         </div>
+
+                        {/* Body Locations */}
+                        {patient.bodyLocations && patient.bodyLocations.length > 0 && (
+                          <div className="mt-1 text-xs">
+                            <span className="text-[#556358] font-medium">Affected Areas: </span>
+                            <span className="text-[#1c241e] font-semibold">
+                              {patient.bodyLocations.map(b => b.name || b.id).join(', ')}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Red Flags preview tag */}
                         {patient.redFlags && patient.redFlags.length > 0 && (
@@ -752,12 +735,71 @@ function NurseDashboardContent() {
                 <div className="text-lg font-black text-[#1c241e]">
                   {selectedPatient.chiefComplaint}
                 </div>
-                {selectedPatient.clinicalSummary?.history?.duration && (
-                  <div className="text-xs text-[#556358] mt-1">
-                    <strong>Duration:</strong> {selectedPatient.clinicalSummary.history.duration}
+                {selectedPatient.bodyLocations && selectedPatient.bodyLocations.length > 0 && (
+                  <div className="text-xs text-[#556358] mt-2">
+                    <strong>Affected Areas:</strong> {selectedPatient.bodyLocations.map(b => b.name || b.id).join(', ')}
                   </div>
                 )}
+                {(selectedPatient.structuredPhysicianSummary?.durationOnset || selectedPatient.clinicalSummary?.history?.duration) && (
+                    <div className="text-xs text-[#556358] mt-1">
+                      <strong>Duration:</strong> {selectedPatient.structuredPhysicianSummary?.durationOnset || selectedPatient.clinicalSummary?.history?.duration}
+                    </div>
+                  )}
               </div>
+
+              {selectedPatient.structuredPhysicianSummary?.clinicalHandoff && (
+                <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5">
+                  <div className="text-xs font-bold text-[#1b3d27] uppercase tracking-wider mb-2">
+                    Physician Clinical Handoff (English)
+                  </div>
+                  <div className="text-sm font-semibold text-[#1c241e] leading-relaxed whitespace-pre-wrap">
+                    {selectedPatient.structuredPhysicianSummary.clinicalHandoff}
+                  </div>
+                </div>
+              )}
+
+              {selectedPatient.ayurvedaReferences && selectedPatient.ayurvedaReferences.length > 0 && (
+                <div className="rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] p-5">
+                  <div className="text-xs font-bold text-[#234e32] uppercase tracking-wider mb-3">
+                    Ayurveda Clinical Reference
+                  </div>
+                  <div className="space-y-3">
+                    {selectedPatient.ayurvedaReferences.map((ref, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-xl border border-[#ded5c2]">
+                        <div className="text-base font-bold text-[#1b3d27]">
+                          {ref.term} ({ref.termHindi})
+                        </div>
+                        <div className="text-xs text-[#4a5749] mt-1">
+                          <strong>Basis:</strong> {ref.basis.join(' + ')}
+                        </div>
+                        <div className="text-[10px] text-[#6f4827] mt-2 font-bold flex items-center gap-1.5">
+                          <AlertTriangle size={12} />
+                          Clinical reference suggestion
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedPatient.medicationSafetyAlerts && selectedPatient.medicationSafetyAlerts.length > 0 && (
+                <div className="rounded-2xl bg-[#fffbeb] border border-[#fcd34d] p-5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#b45309] uppercase tracking-wider mb-3">
+                    <ShieldAlert size={16} />
+                    Medication Safety Review
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-white p-3 rounded-xl border border-[#fcd34d]">
+                      <div className="text-sm font-bold text-[#92400e]">
+                        Review recommended
+                      </div>
+                      <div className="text-xs text-[#b45309] mt-1">
+                        {selectedPatient.medicationSafetyAlerts.length} potential interaction(s) or duplicate(s) identified.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Clinical Interview Transcript / Adaptive Question Answers */}
               <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
@@ -789,23 +831,25 @@ function NurseDashboardContent() {
                   <div className="font-bold text-[#234e32] uppercase tracking-wider text-[11px]">
                     Clinical Background
                   </div>
-                  <div>
-                    <span className="text-[#556358]">Allergies: </span>
-                    <span className="text-[#1c241e] font-semibold">
-                      {selectedPatient.clinicalSummary?.allergies || 'None reported'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#556358]">Medications: </span>
-                    <span className="text-[#1c241e] font-semibold">
-                      {selectedPatient.clinicalSummary?.medications || 'None reported'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#556358]">Past History: </span>
-                    <span className="text-[#1c241e] font-semibold">
-                      {selectedPatient.clinicalSummary?.pastHistory || 'None reported'}
-                    </span>
+                  <div className="text-sm space-y-2 mb-4 bg-white p-4 rounded-xl border border-[#ded5c2] shadow-sm">
+                    <div>
+                      <span className="text-[#556358]">Allergies: </span>
+                      <span className="text-[#1c241e] font-semibold">
+                        {selectedPatient.clinicalSummary?.allergies || 'Not assessed'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#556358]">Medications: </span>
+                      <span className="text-[#1c241e] font-semibold">
+                        {selectedPatient.structuredPhysicianSummary?.medicines || selectedPatient.clinicalSummary?.medications || 'None reported'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#556358]">Past History: </span>
+                      <span className="text-[#1c241e] font-semibold">
+                        {selectedPatient.structuredPhysicianSummary?.relevantHistory || selectedPatient.clinicalSummary?.pastHistory || 'None reported'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
