@@ -143,7 +143,7 @@ export default function SummaryPage() {
         </div>
 
         {/* Master Clinical Intake Card */}
-        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-2xl p-8 md:p-12 mb-8">
+        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-2xl p-6 md:p-12 mb-8">
           <div className="flex items-center gap-3 mb-8 pb-6 border-b border-[#ded5c2]">
             <div className="w-12 h-12 rounded-2xl bg-[#234e32] text-white flex items-center justify-center shadow-md shadow-[#234e32]/20">
               <Sparkles size={24} className="text-[#e8f1e6]" />
@@ -303,10 +303,10 @@ export default function SummaryPage() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end w-full">
           <button 
             onClick={handleSendToDoctor} 
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-10 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
+            className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-10 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
           >
             <span>{t('Send to Doctor')}</span>
             <ArrowRight size={20} />

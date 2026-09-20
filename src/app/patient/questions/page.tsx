@@ -193,27 +193,69 @@ export default function QuestionsPage() {
         )}
 
         {!done && !loading && currentQ && (
-          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12 mb-6">
+          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 mb-6">
             <div className="flex items-center gap-2 mb-2.5 text-xs font-bold text-[#234e32] uppercase tracking-wide">
               <span className="w-2.5 h-2.5 rounded-full bg-[#234e32] animate-pulse-soft" /> {t('AI Question')}
             </div>
             
             <div className="flex items-start gap-4 mb-6">
-              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#1b3d27] leading-snug flex-1">
-                {renderQText(currentQ)}
-              </h3>
-              {supported && (
+              <div className="flex-1">
+                <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#1b3d27] leading-snug">
+                  {renderQText(currentQ)}
+                </h3>
+                
+                {(isListening || isProcessing || speechError) && (
+                  <div className="mt-3 flex items-center gap-3">
+                    {isListening && (
+                      <span className="text-sm font-bold text-[#b83b3b] flex items-center gap-1.5">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#d63a4a] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#d63a4a]"></span>
+                        </span>
+                        {t('Listening...')}
+                      </span>
+                    )}
+                    {isProcessing && (
+                      <span className="text-sm font-bold text-[#556358] flex items-center gap-1.5">
+                        <Loader2 size={16} className="animate-spin" /> {t('Processing...')}
+                      </span>
+                    )}
+                    {speechError && (
+                      <span className="text-sm font-bold text-[#9a2c2c] flex items-center gap-1.5">
+                        <AlertCircle size={16} /> {t(speechError)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 flex-shrink-0 mt-1">
+                {supported && (
+                  <button 
+                    onClick={() => isSpeaking ? cancel() : speak(renderQText(currentQ))}
+                    className={`p-2.5 rounded-full transition-colors flex-shrink-0 ${
+                      isSpeaking ? 'bg-[#234e32] text-white shadow-md' : 'bg-[#e4ede1] text-[#234e32] hover:bg-[#d5e3d0]'
+                    }`}
+                    aria-label={t('Listen to question')}
+                    title={t('Listen to question')}
+                  >
+                    <Volume2 size={24} className={isSpeaking ? 'animate-pulse' : ''} />
+                  </button>
+                )}
+                
                 <button 
-                  onClick={() => isSpeaking ? cancel() : speak(renderQText(currentQ))}
-                  className={`p-2.5 rounded-full transition-colors flex-shrink-0 mt-1 ${
-                    isSpeaking ? 'bg-[#234e32] text-white shadow-md' : 'bg-[#e4ede1] text-[#234e32] hover:bg-[#d5e3d0]'
+                  onClick={handleListen}
+                  disabled={isProcessing}
+                  className={`p-2.5 rounded-full transition-colors flex-shrink-0 relative ${
+                    isListening ? 'bg-[#ffebef] text-[#d63a4a] border border-[#d63a4a] shadow-md' : 
+                    isProcessing ? 'bg-[#e4ede1] text-[#556358]' :
+                    'bg-[#e4ede1] text-[#234e32] hover:bg-[#d5e3d0]'
                   }`}
-                  aria-label={t('Listen to question')}
-                  title={t('Listen to question')}
+                  aria-label={t('Tap to Speak')}
+                  title={t('Tap to Speak')}
                 >
-                  <Volume2 size={24} className={isSpeaking ? 'animate-pulse' : ''} />
+                  <Mic size={24} className={`${isListening ? 'animate-pulse text-[#d63a4a]' : isProcessing ? 'animate-spin' : ''}`} />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Conversation Log Box */}
@@ -256,7 +298,7 @@ export default function QuestionsPage() {
             {/* Input Options / Free Text */}
             {currentQ.type === 'free_text' || currentQ.type === 'duration' || currentQ.type === 'number' || currentQ.type === 'text' || (!currentQ.options && !currentQ.choices && !currentQ.type.includes('yes_no')) ? (
               <div className="flex flex-col gap-3 mb-6">
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <textarea 
                     className="w-full rounded-2xl bg-white border border-[#ded5c2] p-5 focus:outline-none focus:ring-2 focus:ring-[#234e32] resize-none transition"
                     rows={4}
@@ -276,7 +318,7 @@ export default function QuestionsPage() {
                   <button 
                     onClick={() => submitAnswer(currentAnswer)}
                     disabled={!currentAnswer.trim()}
-                    className={`rounded-2xl px-7 py-3.5 font-bold text-sm transition shadow-sm ${
+                    className={`w-full sm:w-auto rounded-2xl px-7 py-3.5 font-bold text-sm transition shadow-sm ${
                       currentAnswer.trim() ? 'bg-[#234e32] text-white hover:bg-[#1a3b26] shadow-[#234e32]/20' : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
                     }`}
                   >
@@ -286,62 +328,33 @@ export default function QuestionsPage() {
                 <p className="text-xs text-[#6b7c6e]">{t('Press Enter or click Next to submit')}</p>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-3 mb-6">
-                {(currentQ.options || currentQ.choices || ['Yes', 'No', 'Not sure']).map((choice) => (
-                  <button 
-                    key={choice} 
-                    onClick={() => submitAnswer(choice)} 
-                    className="rounded-2xl border-2 border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] text-[#1c241e] font-bold px-6 py-3.5 text-sm transition focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 hover:bg-[#e8f1e6]"
-                  >
-                    {t(choice)}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Voice Input Section */}
-            <div className="flex flex-col gap-3 pt-2 border-t border-[#ded5c2]">
-              <div className="flex flex-col items-center justify-center py-6">
-                <button 
-                  onClick={handleListen}
-                  disabled={isProcessing}
-                  className={`mx-auto flex flex-col items-center justify-center p-8 sm:p-12 rounded-full transition shadow-lg relative ${
-                    isListening ? 'bg-[#ffebef] text-[#d63a4a] border-2 border-[#d63a4a] animate-pulse' : 
-                    isProcessing ? 'bg-[#e4ede1] text-[#556358] border-2 border-[#c7d9c2]' :
-                    'bg-[#e4ede1] text-[#234e32] border-2 border-transparent hover:bg-[#d5e3d0]'
-                  }`}
-                >
-                  <Mic size={isProcessing ? 32 : 48} className={`mb-3 sm:mb-4 ${isListening ? 'animate-bounce' : isProcessing ? 'animate-spin' : ''}`} />
-                  <span className="font-bold text-lg sm:text-xl">
-                    {isListening ? t('Listening...') : isProcessing ? t('Processing...') : t('Tap to Speak')}
-                  </span>
-                </button>
-
-                <div className="mt-4 text-center">
-                  {speechError ? (
-                    <div className="flex items-center gap-2 text-[#9a2c2c] font-bold justify-center"><AlertCircle size={16}/> {t(speechError)}</div>
-                  ) : isListening ? (
-                    <span className="text-[#b83b3b] font-bold animate-pulse-soft">{t('Listening...')}</span>
-                  ) : (transcript && !isListening && !isProcessing) ? (
-                    <div>
-                      <p className="text-xs font-semibold text-[#667768] uppercase tracking-wider mb-1">{t('We heard:')}</p>
-                      <p className="font-serif font-bold text-2xl text-[#1b3d27]">"{currentAnswer}"</p>
-                    </div>
-                  ) : (
-                    <p className="text-[#6b7c6e] font-medium">{t('Tap the microphone to answer')}</p>
-                  )}
+              <div className="flex flex-col mb-6">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                  {(currentQ.options || currentQ.choices || ['Yes', 'No', 'Not sure']).map((choice) => (
+                    <button 
+                      key={choice} 
+                      onClick={() => submitAnswer(choice)} 
+                      className="rounded-2xl border-2 border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] text-[#1c241e] font-bold px-6 py-3.5 text-sm transition focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 hover:bg-[#e8f1e6]"
+                    >
+                      {t(choice)}
+                    </button>
+                  ))}
                 </div>
-                
-                {(transcript && !isListening && !isProcessing || speechError) && (
-                  <div className="mt-6 flex gap-3.5 justify-center w-full max-w-xs">
-                    {(transcript && !isListening && !isProcessing) && (
-                      <button onClick={() => submitAnswer(transcript)} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
-                    )}
-                    <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#f8f5ee] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Try Again')}</button>
+
+                {(currentAnswer && !isListening && !isProcessing) && (
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3 items-center bg-[#f8f5ee] p-4 rounded-2xl border border-[#ded5c2]">
+                    <div className="flex-1 w-full text-center sm:text-left">
+                      <p className="text-xs font-semibold text-[#667768] uppercase tracking-wider mb-1">{t('We heard:')}</p>
+                      <p className="font-bold text-[#1c241e]">"{currentAnswer}"</p>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                      <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-white border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Clear')}</button>
+                      <button onClick={() => submitAnswer(currentAnswer)} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -350,7 +363,7 @@ export default function QuestionsPage() {
             <div className="w-16 h-16 rounded-full bg-[#fde8e8] text-[#b83b3b] flex items-center justify-center mx-auto mb-4"><AlertCircle size={34} /></div>
             <h3 className="text-3xl font-serif font-bold text-[#8a1f1f] mb-3">{t('Immediate Attention Recommended')}</h3>
             <p className="text-[#771d1d] font-medium mb-6 leading-relaxed">{t('Based on your responses, we advise immediate medical evaluation.')}</p>
-            <button onClick={() => router.push('/patient/history')} className="inline-flex items-center gap-2 rounded-2xl bg-[#b83b3b] hover:bg-[#992828] text-white font-bold px-8 py-3.5 text-base shadow-lg transition">{t('Proceed to Summary')}</button>
+            <button onClick={() => router.push('/patient/history')} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#b83b3b] hover:bg-[#992828] text-white font-bold px-8 py-3.5 text-base shadow-lg transition">{t('Proceed to Summary')}</button>
           </div>
         )}
 
@@ -358,7 +371,7 @@ export default function QuestionsPage() {
           <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12 mb-6 text-center">
             <h3 className="text-3xl font-serif font-bold text-[#1b3d27] mb-3">{t('Questions Complete')}</h3>
             <p className="text-[#556358] mb-6">{t('Your responses have been structured for clinical review.')}</p>
-            <button onClick={() => router.push('/patient/history')} className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition">
+            <button onClick={() => router.push('/patient/history')} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition">
               <span>{t('Review Structured History')}</span>
               <ArrowRight size={18} />
             </button>

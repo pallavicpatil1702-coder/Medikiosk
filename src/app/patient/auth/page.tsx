@@ -118,7 +118,7 @@ export default function PatientAuthPage() {
       <main className="min-h-screen bg-slate-50">
         <Header title={t('Authentication')} />
         <div className="max-w-md mx-auto px-6 py-24 text-center">
-          <div className="bg-teal-50 border border-teal-200 p-8 rounded-3xl">
+          <div className="bg-teal-50 border border-teal-200 p-6 sm:p-8 rounded-3xl">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">{t('Already logged in')}</h2>
             <p className="text-slate-600 mb-6">{currentUser.email}</p>
             <button 
@@ -169,7 +169,7 @@ export default function PatientAuthPage() {
             </button>
           </div>
 
-          <div className="p-8">
+          <div className="p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <>

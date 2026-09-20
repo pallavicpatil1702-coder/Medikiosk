@@ -93,7 +93,7 @@ export default function IdentifyPage() {
               <div className="flex justify-end">
                 <button 
                   onClick={() => handleContinueWithAbha()} 
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition text-sm"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition text-sm"
                 >
                   <span>{t('Continue to Consent')}</span>
                   <ArrowRight size={16} />
@@ -119,7 +119,7 @@ export default function IdentifyPage() {
                 <button 
                   onClick={() => handleContinueWithAbha(inputAbhaId)} 
                   disabled={loading} 
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition disabled:opacity-50 text-sm"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition disabled:opacity-50 text-sm"
                 >
                   {loading ? <><Loader2 size={18} className="animate-spin" /> {t('Processing...')}</> : <span>{t('Continue to Consent')}</span>}
                   <ArrowRight size={16} />
@@ -138,7 +138,7 @@ export default function IdentifyPage() {
               <button 
                 onClick={handleScanSimulation} 
                 disabled={loading} 
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition disabled:opacity-50 text-sm"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 shadow-lg shadow-[#234e32]/25 transition disabled:opacity-50 text-sm"
               >
                 {loading ? <><Loader2 size={18} className="animate-spin" /> {t('Processing QR Scan...')}</> : <span>{t('Scan & Continue')}</span>}
                 <ArrowRight size={16} />

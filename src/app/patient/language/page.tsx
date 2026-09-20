@@ -161,7 +161,7 @@ export default function LanguagePage() {
         <div className="flex justify-end">
           <button 
             onClick={handleContinue} 
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
+            className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
           >
             {t('Continue')} <span aria-hidden>→</span>
           </button>

@@ -53,18 +53,18 @@ export default function PatientKioskLandingPage() {
             {t('Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.')}
           </motion.p>
 
-          <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 w-full">
             <motion.a
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               href="/patient/language"
               onClick={() => clearSession()}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base sm:text-lg shadow-lg shadow-[#234e32]/25 transition focus:outline-none focus:ring-4 focus:ring-[#234e32]/30"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 w-full sm:w-auto text-base sm:text-lg shadow-lg shadow-[#234e32]/25 transition focus:outline-none focus:ring-4 focus:ring-[#234e32]/30"
             >
               {t('Start Consultation')} <ChevronRight size={20} />
             </motion.a>
             {loading ? (
-              <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] px-8 py-4 w-[160px] border border-[#ded5c2] shadow-xs">
+              <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] px-8 py-4 w-full sm:w-[160px] border border-[#ded5c2] shadow-xs">
                 <div className="w-5 h-5 border-2 border-[#4d2f19] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : currentUser && !isAnonymous ? (
@@ -72,7 +72,7 @@ export default function PatientKioskLandingPage() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 href="/patient/dashboard"
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 w-full sm:w-auto text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
               >
                 {t('Go to Dashboard')}
               </motion.a>
@@ -81,14 +81,14 @@ export default function PatientKioskLandingPage() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 href="/patient/auth"
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#fbf9f4] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-8 py-4 w-full sm:w-auto text-base sm:text-lg border border-[#ded5c2] transition shadow-xs"
               >
                 {t('Login / Sign Up')}
               </motion.a>
             )}
           </motion.div>
 
-          <motion.div variants={itemVariants} className="mt-10 flex items-center gap-6 text-xs text-[#556358] font-semibold">
+          <motion.div variants={itemVariants} className="mt-10 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-[#556358] font-semibold">
             <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> {t('Touch Screen')}</span>
             <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> {t('Secure Session')}</span>
             <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> {t('9 Languages')}</span>

@@ -349,8 +349,8 @@ export default function InteractiveBodyMap({ selectedLocations = [], onChange }:
         </div>
 
         {/* 3D Canvas */}
-        <div className="relative w-full max-w-[320px] aspect-[1/1.5] rounded-[24px] overflow-hidden touch-none" style={{ touchAction: 'none' }}>
-          <Canvas camera={{ position: [0, 0.9, 2.2], fov: 45 }}>
+        <div className="relative w-full max-w-[320px] aspect-[1/1.5] rounded-[24px] overflow-hidden">
+          <Canvas camera={{ position: [0, 0.9, 2.8], fov: 45 }}>
             <ambientLight intensity={0.5} />
             <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
             <pointLight position={[-10, -10, -10]} intensity={0.5} />

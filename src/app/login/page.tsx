@@ -2,8 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
 import Header from '@/components/Header';
@@ -66,6 +67,10 @@ function LoginForm() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [phone, setPhone] = useState('');
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -98,28 +103,64 @@ function LoginForm() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      const tokenResult = await cred.user.getIdTokenResult(true);
-      const userRole = (tokenResult.claims.role as string) || null;
+      if (isSignUp) {
+        // Sign up flow
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        
+        // Save patient profile
+        await setDoc(doc(db, 'patients', cred.user.uid), {
+          id: cred.user.uid,
+          name: name.trim(),
+          age: parseInt(age, 10) || 0,
+          contact: phone.trim(),
+          email: email.trim(),
+          createdAt: new Date().toISOString()
+        });
 
-      if (!userRole) {
-        setError('Login successful, but no custom claim role is assigned to this account. Please contact the administrator.');
-        setLoading(false);
-        return;
+        // Assign role using our admin API route
+        const response = await fetch('/api/admin/set-role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), role: 'patient' }),
+        });
+        
+        if (!response.ok) {
+           throw new Error('Failed to assign role. Please contact support.');
+        }
+
+        // Force token refresh to get new claims
+        await cred.user.getIdToken(true);
+        const destination = getDestinationForRole('patient');
+        router.push(destination);
+      } else {
+        // Login flow
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        const tokenResult = await cred.user.getIdTokenResult(true);
+        const userRole = (tokenResult.claims.role as string) || null;
+
+        if (!userRole) {
+          setError('Login successful, but no custom claim role is assigned to this account. Please contact the administrator.');
+          setLoading(false);
+          return;
+        }
+
+        const destination = getDestinationForRole(userRole);
+        router.push(destination);
       }
-
-      const destination = getDestinationForRole(userRole);
-      router.push(destination);
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Auth error:', err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError('Invalid email or password. Please verify credentials or use the demo buttons below.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already registered. Please sign in instead.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password is too weak. Please use at least 6 characters.');
       } else {
         setError(err.message || 'Authentication failed. Please check credentials.');
       }
@@ -193,12 +234,54 @@ function LoginForm() {
 
           {/* Login Card */}
           <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] p-7 sm:p-9 shadow-2xl relative overflow-hidden">
-            <form onSubmit={handleLogin} className="space-y-4 relative z-10">
+            <form onSubmit={handleAuth} className="space-y-4 relative z-10">
               {error && (
                 <div className="rounded-2xl bg-[#fff5f5] border border-[#b83b3b]/30 p-4 text-xs text-[#8a1f1f] font-medium flex items-start gap-2.5">
                   <AlertCircle size={17} className="shrink-0 text-[#b83b3b] mt-0.5" />
                   <span>{error}</span>
                 </div>
+              )}
+
+              {isSignUp && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-[#1c241e] uppercase tracking-wider mb-2">Full Name</label>
+                    <input
+                      type="text"
+                      required={isSignUp}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="John Doe"
+                      className="w-full rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] px-4 py-3.5 text-sm text-[#1c241e] placeholder:text-[#829277] focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 focus:border-[#234e32] transition font-medium"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#1c241e] uppercase tracking-wider mb-2">Age</label>
+                      <input
+                        type="number"
+                        required={isSignUp}
+                        min="0"
+                        max="120"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        placeholder="e.g. 30"
+                        className="w-full rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] px-4 py-3.5 text-sm text-[#1c241e] placeholder:text-[#829277] focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 focus:border-[#234e32] transition font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#1c241e] uppercase tracking-wider mb-2">Phone Number</label>
+                      <input
+                        type="tel"
+                        required={isSignUp}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91..."
+                        className="w-full rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] px-4 py-3.5 text-sm text-[#1c241e] placeholder:text-[#829277] focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 focus:border-[#234e32] transition font-medium"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
               <div>
@@ -245,14 +328,24 @@ function LoginForm() {
                 className="w-full mt-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold py-4 px-6 text-sm shadow-xl shadow-[#234e32]/25 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
-                  <span>Verifying Custom Claims...</span>
+                  <span>{isSignUp ? 'Creating Account...' : 'Verifying Custom Claims...'}</span>
                 ) : (
                   <>
-                    <span>Sign In to Portal</span>
-                    <ArrowRight size={17} />
+                    <span>{isSignUp ? 'Sign Up' : 'Sign In to Portal'}</span>
+                    <ArrowRight size={18} />
                   </>
                 )}
               </button>
+              
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-xs font-bold text-[#556358] hover:text-[#234e32] transition"
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
             </form>
           </div>
 

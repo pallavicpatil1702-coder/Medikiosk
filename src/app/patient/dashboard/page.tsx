@@ -23,7 +23,10 @@ import {
   LogOut,
   PlusCircle,
   AlertTriangle,
-  Users
+  Users,
+  Languages,
+  ChevronRight,
+  HeartPulse
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
@@ -235,31 +238,90 @@ function PatientDashboardContent() {
           </div>
         )}
 
-        {/* Start Intake Banner Card - Only show if not currently in queue */}
+        {/* Start Intake Hero - Only show if not currently in queue */}
         {!patientQueueInfo || patientQueueInfo.queueStatus === 'completed' ? (
-          <div className="mt-8 rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e4ede1] border border-[#c7d9c2] text-[#234e32] text-xs font-bold uppercase tracking-wider">
-                <Activity size={14} /> Clinical Intake Station
+          <div className="mt-8 grid lg:grid-cols-2 gap-10 items-center">
+            {/* Left Column */}
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#e4ede1] border border-[#c7d9c2] px-4 py-1.5 text-xs font-bold text-[#234e32] mb-6 shadow-xs">
+                <Languages size={15} /> {t('Multilingual • Touch Friendly • Voice Intake')}
               </div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#1b3d27]">
-                Need to complete your intake before seeing the doctor?
+
+              <h2 className="text-4xl sm:text-5xl font-serif font-bold text-[#1b3d27] tracking-tight leading-[1.15] mb-5">
+                {t('Smart AI-Assisted')} <br />
+                <span className="text-[#6f4827]">{t('Healthcare Intake')}</span>
               </h2>
-              <p className="text-xs sm:text-sm text-[#556358] leading-relaxed">
-                Answer quick symptom questions in your preferred language using voice or touchscreen. Your clinical summary is automatically generated for doctor review.
+
+              <p className="text-base text-[#4a5749] leading-relaxed mb-8 max-w-xl">
+                {t('Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.')}
               </p>
+
+              <div className="flex flex-wrap gap-4">
+                <a
+                  href="/patient/language"
+                  className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
+                >
+                  {t('Start Consultation')} <ChevronRight size={20} />
+                </a>
+              </div>
+
+              <div className="mt-8 flex items-center gap-6 text-xs text-[#556358] font-semibold">
+                <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> {t('Touch Screen')}</span>
+                <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> {t('Secure Session')}</span>
+                <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> {t('9 Languages')}</span>
+              </div>
             </div>
 
-            <a
-              href="/patient/language"
-              className="px-7 py-4 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold text-sm shadow-lg shadow-[#234e32]/25 transition flex items-center gap-2 whitespace-nowrap shrink-0"
-            >
-              <PlusCircle size={18} />
-              <span>Start Intake Consultation</span>
-              <ArrowRight size={16} />
-            </a>
+            {/* Right Column */}
+            <div className="rounded-3xl bg-[#fbf9f4]/95 backdrop-blur-xl border border-[#ded5c2] p-8 shadow-[0_15px_40px_-10px_rgba(45,35,20,0.12)]">
+              <div className="flex items-center gap-3.5 mb-6 pb-5 border-b border-[#ded5c2]/70">
+                <div className="w-12 h-12 rounded-2xl bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] flex items-center justify-center shadow-xs">
+                  <HeartPulse size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#1b3d27] text-lg">{t('Holistic Intake Flow')}</h3>
+                  <p className="text-xs font-semibold text-[#556358]">{t('Review by attending doctor required')}</p>
+                </div>
+              </div>
+
+              <ul className="space-y-4 text-sm text-[#4a5749] font-medium">
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Patient Identification & Consent Logging')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Chief Complaint Logging in 9 Languages')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Speak naturally using Voice Microphone')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Listen to questions using Speech Audio')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Medical Report & Document OCR Upload')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Definitive Clinical Red-Flag Triage')}
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                  {t('Final decision by Attending Doctor')}
+                </li>
+              </ul>
+              <div className="mt-8 bg-[#e4ede1] rounded-2xl p-4 flex items-start gap-3 border border-[#c7d9c2]">
+                <ShieldCheck size={20} className="text-[#234e32] shrink-0 mt-0.5" />
+                <p className="text-xs text-[#234e32] font-semibold leading-relaxed">
+                  {t('Your privacy is protected. MediKiosk complies with healthcare data security standards.')}
+                </p>
+              </div>
+            </div>
           </div>
-        
             ) : null}
           </>
         )}

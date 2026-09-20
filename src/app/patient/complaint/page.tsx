@@ -138,7 +138,7 @@ export default function ComplaintPage() {
             </button>
           </div>
 
-          <div className="p-8 md:p-12">
+          <div className="p-6 md:p-12">
             {mode === 'touch' && (
               <div>
                 <div className="flex items-center justify-between mb-6">
@@ -220,18 +220,18 @@ export default function ComplaintPage() {
                   )}
                 </div>
                 {(spoken || speechError) && (
-                  <div className="mt-6 flex gap-3.5 justify-center">
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3.5 justify-center w-full">
                     {spoken && (
                       <button 
                         onClick={() => { setSpoken(false); stopListening(); }} 
-                        className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-6 py-3 transition shadow-sm"
+                        className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-6 py-3 transition shadow-sm"
                       >
                         <Check size={18} /> {t('Confirm')}
                       </button>
                     )}
                     <button 
                       onClick={() => { setSpoken(false); stopListening(); setText(''); reset(); startListening(); }} 
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-6 py-3 transition"
+                      className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-6 py-3 transition"
                     >
                       <RotateCcw size={18} /> {t('Try Again')}
                     </button>
@@ -242,11 +242,11 @@ export default function ComplaintPage() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end w-full">
           <button 
             onClick={handleContinue} 
             disabled={!(selectedOptions.length > 0 || text.trim())} 
-            className={`inline-flex items-center gap-2 rounded-2xl font-bold px-8 py-3.5 text-base shadow-lg transition ${
+            className={`w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl font-bold px-8 py-3.5 text-base shadow-lg transition ${
               (selectedOptions.length > 0 || text.trim()) 
                 ? 'bg-[#234e32] hover:bg-[#1a3b26] text-white shadow-[#234e32]/25' 
                 : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'

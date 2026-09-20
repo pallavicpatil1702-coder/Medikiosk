@@ -149,7 +149,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12 mb-8">
+        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 mb-8">
           <h3 className="text-2xl font-serif font-bold text-[#1b3d27] mb-8">{t('Do you have previous medical reports?')}</h3>
           <div className="grid sm:grid-cols-2 gap-5 mb-8">
             <input 
@@ -241,10 +241,10 @@ export default function ReportsPage() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
+            <div className="flex w-full">
               <button 
                 onClick={handleContinue} 
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+                className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
               >
                 <span>{t('Continue to Extraction')}</span>
                 <ArrowRight size={18} />

@@ -952,8 +952,8 @@ function DoctorDashboardContent() {
                                 <div className="text-[11px] font-bold text-[#234e32] flex items-center gap-1.5">
                                   <Sparkles size={13} /> Extracted Clinical Findings (OCR)
                                 </div>
-                                <div className="rounded-xl border border-[#ded5c2] overflow-hidden">
-                                  <table className="w-full text-left text-[11px]">
+                                <div className="rounded-xl border border-[#ded5c2] overflow-hidden overflow-x-auto">
+                                  <table className="w-full text-left text-[11px] whitespace-nowrap sm:whitespace-normal">
                                     <thead className="bg-[#f5efe4] text-[#556358] font-mono">
                                       <tr>
                                         <th className="p-2.5">Test Name</th>

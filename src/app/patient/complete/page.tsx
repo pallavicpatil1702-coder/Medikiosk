@@ -23,16 +23,23 @@ export default function CompletePage() {
     try {
       setSyncStatus('syncing');
       const result = await sync('completed');
+      
+      // Let's check what the actual syncStatus is now in local store
+      const localSession = getSession();
+      
       if (result && result.success) {
-        console.log('Session successfully synced to Firestore as completed');
-        setSyncStatus('synced');
-        setTimeout(() => {
-          // If they are an anonymous kiosk user, auto-redirect to the live queue
-          // If they are an authenticated patient, don't auto-redirect, let them choose
-          if (currentUser?.isAnonymous) {
-            router.push('/patient/queue');
-          }
-        }, 1500);
+        if (localSession.syncStatus === 'pending') {
+           setSyncStatus('sync_error');
+        } else {
+           setSyncStatus('synced');
+           setTimeout(() => {
+             // If they are an anonymous kiosk user, auto-redirect to the live queue
+             // If they are an authenticated patient, don't auto-redirect, let them choose
+             if (currentUser?.isAnonymous) {
+               router.push('/patient/queue');
+             }
+           }, 1500);
+        }
       } else {
         console.error('Failed to sync session to Firestore:', result?.error);
         setSyncStatus('sync_error');
@@ -73,7 +80,7 @@ export default function CompletePage() {
     <AyurvedaBackground variant="kiosk">
       <Header />
       <section className="relative z-10 max-w-3xl mx-auto px-6 py-16 sm:py-24 text-center flex-1 flex flex-col items-center justify-center">
-        <div className="w-full rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-2xl p-10 sm:p-14 flex flex-col items-center">
+        <div className="w-full rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-2xl p-6 sm:p-14 flex flex-col items-center">
           {syncStatus === 'syncing' && (
             <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] shadow-xl mb-8 animate-pulse">
               <Loader2 size={54} className="animate-spin" />
@@ -102,7 +109,7 @@ export default function CompletePage() {
             {syncStatus === 'sync_error' && t('Your intake is preserved locally. Click below to retry transmitting to the clinic.')}
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full max-w-md">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full max-w-2xl">
             {syncStatus === 'sync_error' && (
               <button 
                 onClick={handleRetry} 

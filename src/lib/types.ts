@@ -191,7 +191,7 @@ export interface PatientSession {
 
   doctorReview?: DoctorReview;
   firestoreSessionId?: string;
-  syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
+  syncStatus?: 'error' | 'local' | 'syncing' | 'synced' | 'pending';
   status?: string;
   language?: string;
   createdAt?: any;

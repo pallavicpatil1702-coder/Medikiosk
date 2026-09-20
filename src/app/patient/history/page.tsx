@@ -39,7 +39,7 @@ export default function HistoryPage() {
 
         {history ? (
           <div className="space-y-6">
-            <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12">
+            <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12">
               <h3 className="text-2xl font-serif font-bold text-[#1b3d27] mb-6">{t('Clinical History')}</h3>
               <div className="grid md:grid-cols-2 gap-5">
                 <div className="rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
@@ -77,17 +77,17 @@ export default function HistoryPage() {
           </div>
         )}
 
-        <div className="mt-8 flex gap-3.5">
+        <div className="mt-8 flex flex-col sm:flex-row gap-3.5 w-full">
           <button 
             onClick={() => router.push('/patient/reports')} 
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+            className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
           >
             <span>{t('Continue')}</span>
             <ArrowRight size={18} />
           </button>
           <button 
             onClick={() => router.back()} 
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
+            className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
           >
             {t('Back')}
           </button>

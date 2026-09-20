@@ -33,17 +33,22 @@ export default function ExtractionPage() {
     const session = getSession();
     const docName = session.documents?.[0]?.fileName || 'Unknown Report';
     
-    const res = await extractFromReport(session.documents[0]);
-    
-    if (res.error) {
-      setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error: ' + res.error });
-    } else if (res.data) {
-      setExtracted(res.data);
+    if (!navigator.onLine) {
+      setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error: You are currently offline. Document will be processed later.' });
+      updateSession({ extractedData: { tests: [], medicines: [], confidence: 'low', source: 'Error: You are currently offline. Document will be processed later.' } as any });
     } else {
-      setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Empty response' });
+      const res = await extractFromReport(session.documents[0]);
+      
+      if (res.error) {
+        setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error: ' + res.error });
+      } else if (res.data) {
+        setExtracted(res.data);
+      } else {
+        setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Empty response' });
+      }
+      updateSession({ extractedData: res.data as any });
     }
     
-    updateSession({ extractedData: res.data as any });
     sync();
     
     setLoading(false);
@@ -64,12 +69,12 @@ export default function ExtractionPage() {
         <Header title="Medical Report Analysis" backHref="/patient/reports" />
         <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
           <ProgressBar current={12} total={13} />
-          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-12 text-center">
+          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 text-center">
             <h2 className="text-3xl font-serif font-bold text-[#1b3d27] mb-3">{t('No Reports Found')}</h2>
             <p className="text-[#556358] mb-6">{t('You skipped uploading reports.')}</p>
             <button 
               onClick={() => router.push('/patient/summary')} 
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base transition shadow-md shadow-[#234e32]/25"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base transition shadow-md shadow-[#234e32]/25"
             >
               <span>{t('Continue to Summary')}</span>
               <ArrowRight size={18} />
@@ -91,10 +96,10 @@ export default function ExtractionPage() {
         </div>
 
         {!extracted && !loading && (
-          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-12 text-center">
+          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 text-center">
             <button 
               onClick={runExtract} 
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-9 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-9 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
             >
               <Sparkles size={22} />
               <span>{t('Analyze Report & Extract Data')}</span>
@@ -104,7 +109,7 @@ export default function ExtractionPage() {
         )}
 
         {loading && (
-          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-12 text-center">
+          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 text-center">
             <div className="w-16 h-16 mx-auto rounded-2xl bg-[#e4ede1] text-[#234e32] flex items-center justify-center animate-pulse-soft mb-4">
               <Sparkles size={32} />
             </div>
@@ -114,7 +119,7 @@ export default function ExtractionPage() {
         )}
 
         {extracted && (
-          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12">
+          <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12">
             <div className="flex items-center gap-3 mb-6">
               <h3 className="text-2xl font-serif font-bold text-[#1b3d27]">{t('Extracted Information')}</h3>
               <span className="rounded-full bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] text-xs font-bold px-3 py-1">
@@ -162,7 +167,7 @@ export default function ExtractionPage() {
                   <div>
                     <h4 className="text-base font-bold text-[#1b3d27] mb-3">{t('Lab Results')}</h4>
                     <div className="overflow-x-auto rounded-2xl border border-[#ded5c2] bg-white">
-                      <table className="w-full text-left text-sm text-[#3e4a3f]">
+                      <table className="w-full text-left text-sm text-[#3e4a3f] whitespace-nowrap sm:whitespace-normal">
                         <thead className="bg-[#f8f5ee] text-xs uppercase font-extrabold text-[#6b7c6e] border-b border-[#ded5c2]">
                           <tr>
                             <th className="px-4 py-3">{t('Test Name')}</th>
@@ -203,10 +208,10 @@ export default function ExtractionPage() {
                 {t('Extraction is simulated/assisted for this MVP and requires clinician verification. AI does not diagnose or prescribe.')}
               </span>
             </div>
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex justify-end w-full">
               <button 
                 onClick={handleContinue} 
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+                className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
               >
                 <span>{t('Continue to Summary')}</span>
                 <ArrowRight size={18} />

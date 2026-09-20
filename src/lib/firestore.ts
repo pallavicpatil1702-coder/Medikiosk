@@ -91,7 +91,7 @@ export const syncSessionToFirestore = async (
   session: PatientSession,
   updateLocalSession: (updates: Partial<PatientSession>) => void,
   status: 'active' | 'completed' | 'submitted' | 'pending_review' = 'active'
-): Promise<{ success: boolean; error?: string }> => {
+): Promise<{ success: boolean; error?: string; networkError?: boolean }> => {
   console.log('[Session Sync] called = true');
   // Ensure we have a user (anonymously signed in if needed)
   const user = currentUser || await ensurePatientAuth();
@@ -103,6 +103,13 @@ export const syncSessionToFirestore = async (
   if (!user || !user.uid) {
     console.warn('[Session Sync] write error = No authenticated user');
     return { success: false, error: 'No authenticated user' };
+  }
+
+  // Pre-check browser online status
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.warn('[Session Sync] write error = Browser reports offline');
+    updateLocalSession({ syncStatus: 'pending' });
+    return { success: false, networkError: true, error: 'Browser is offline' };
   }
 
   try {
@@ -193,6 +200,12 @@ export const syncSessionToFirestore = async (
       } catch (updateErr: any) {
         console.warn('[Session Sync] Could not update existing session (' + session.firestoreSessionId + '), will create a new session document for this user:', updateErr?.message);
         // Fall through to create a new session document
+        
+        // If it's a network error during update, we should catch it here instead of falling through to addDoc
+        if (updateErr?.code === 'unavailable' || updateErr?.message?.toLowerCase().includes('network') || updateErr?.message?.toLowerCase().includes('offline')) {
+          updateLocalSession({ syncStatus: 'pending' });
+          return { success: false, networkError: true, error: updateErr?.message || 'Network error' };
+        }
       }
     }
 
@@ -217,11 +230,23 @@ export const syncSessionToFirestore = async (
     });
     
     // Save the generated ID back to local storage
-    updateLocalSession({ firestoreSessionId: docRef.id, syncStatus: 'synced', triageStatus: 'pending_review' });
+    updateLocalSession({ firestoreSessionId: docRef.id, syncStatus: 'synced', triageStatus: 'pending_review', ...queueFields });
     console.log('[Session Sync] write success = true (Created new session: ' + docRef.id + ')');
     return { success: true };
   } catch (error: any) {
     console.error('[Session Sync] write error =', error?.code, error?.message, error);
+    
+    // Check if it's a network error
+    const isNetworkError = 
+      error?.code === 'unavailable' || 
+      error?.message?.toLowerCase().includes('offline') ||
+      error?.message?.toLowerCase().includes('network');
+
+    if (isNetworkError) {
+      updateLocalSession({ syncStatus: 'pending' });
+      return { success: false, networkError: true, error: error?.message || 'Network error' };
+    }
+
     updateLocalSession({ syncStatus: 'error' });
     return { success: false, error: error?.message || 'Unknown error' };
   }

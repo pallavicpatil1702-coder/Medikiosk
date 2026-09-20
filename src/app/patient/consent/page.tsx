@@ -82,11 +82,11 @@ export default function ConsentPage() {
               <span className="font-bold text-[#1b3d27]">{t('I agree')}</span> {t('— I understand this is an AI-assisted intake system, that a healthcare professional must review my information, and that this is a demo / sandbox environment.')}
             </div>
           </label>
-          <div className="mt-8 flex gap-3.5">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3.5 w-full">
             <button 
               onClick={handleContinue} 
               disabled={!agreed} 
-              className={`inline-flex items-center gap-2 rounded-2xl font-bold px-8 py-3.5 text-base shadow-lg transition ${
+              className={`w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl font-bold px-8 py-3.5 text-base shadow-lg transition ${
                 agreed ? 'bg-[#234e32] hover:bg-[#1a3b26] text-white shadow-[#234e32]/25' : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
               }`}
             >
@@ -94,7 +94,7 @@ export default function ConsentPage() {
             </button>
             <a 
               href="/patient/identify" 
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#fbf9f4] border border-[#ded5c2] hover:bg-[#f2ece0] text-[#4d2f19] font-bold px-7 py-3.5 text-base transition"
             >
               {t('Back')}
             </a>

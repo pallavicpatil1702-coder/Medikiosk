@@ -57,6 +57,14 @@ export default function ProfilePage() {
                 createdAt: data.createdAt
               }
             });
+          } else {
+            // Fallback for Demo accounts or users without a profile
+            if (currentUser.email === 'patient@medi-kiosk.demo') {
+              setName('Rahul Sharma');
+              setAge('35');
+              setGender('Male');
+              setContact('9876543210');
+            }
           }
         } catch (err) {
           console.error("Failed to load patient profile:", err);
@@ -92,7 +100,7 @@ export default function ProfilePage() {
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1b3d27] mb-2">{t('Patient Information')}</h2>
           <p className="text-[#556358] text-sm">{t('Your details help us prepare a structured clinical summary.')}</p>
         </div>
-        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-8 md:p-12">
+        <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="p-name" className="block text-sm font-bold text-[#1c241e] mb-2">{t('Name')}</label>
@@ -151,7 +159,7 @@ export default function ProfilePage() {
           <div className="mt-10 flex justify-end">
             <button 
               onClick={handleContinue} 
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-3.5 text-base shadow-lg shadow-[#234e32]/25 transition"
             >
               <span>{t('Continue')}</span>
               <ArrowRight size={18} />
