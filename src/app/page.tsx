@@ -39,7 +39,7 @@ export default function MediKioskMainLanding() {
   }, [currentUser, role, isAnonymous, loading, router]);
 
   const containerVariants: Variants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 1 },
     show: {
       opacity: 1,
       transition: { staggerChildren: 0.1, delayChildren: 0.15 }
@@ -47,7 +47,7 @@ export default function MediKioskMainLanding() {
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 0 },
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } }
   };
 
@@ -127,7 +127,7 @@ export default function MediKioskMainLanding() {
         {/* Hero Section — Matching the provided reference image layout */}
         <motion.div
           className="text-center max-w-3xl mx-auto mb-12 sm:mb-16"
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
@@ -235,7 +235,7 @@ export default function MediKioskMainLanding() {
         {/* System Highlights Banner in Warm Cream Glass */}
         <motion.div
           className="mt-14 rounded-3xl bg-[#fbf9f4]/88 border border-[#ded5c2]/80 p-6 sm:p-8 backdrop-blur-xl shadow-[0_10px_30px_-8px_rgba(45,35,20,0.08)]"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >

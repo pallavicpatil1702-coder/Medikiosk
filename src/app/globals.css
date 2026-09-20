@@ -56,31 +56,25 @@ body {
 
 /* Full-page Ayurveda Background System */
 .ayur-bg-container {
-  min-height: 100vh;
-  position: relative;
   background-image: url('/images/ayurveda-bg.jpg');
   background-size: cover;
   background-position: center center;
-  /* background-attachment: fixed; Removed to fix mobile Safari tap issues */
   background-repeat: no-repeat;
 }
 
 /* Theme Overlays */
 .ayur-overlay-landing {
   background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.32) 0%, rgba(248, 245, 237, 0.65) 55%, rgba(238, 231, 216, 0.85) 100%);
-  min-height: 100vh;
 }
 
 .ayur-overlay-kiosk {
   background: linear-gradient(180deg, rgba(251, 249, 243, 0.85) 0%, rgba(246, 242, 232, 0.92) 100%);
-  min-height: 100vh;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
 .ayur-overlay-clinical {
   background: linear-gradient(180deg, rgba(251, 249, 243, 0.90) 0%, rgba(246, 242, 232, 0.95) 100%);
-  min-height: 100vh;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
