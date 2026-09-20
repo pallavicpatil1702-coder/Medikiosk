@@ -19,14 +19,16 @@ export default function AyurvedaBackground({
 
   return (
     <div className={`relative min-h-screen ${className}`}>
-      {/* Background Image Layer (Decoupled to prevent touch interception) */}
-      <div className="absolute inset-0 z-[-2] pointer-events-none ayur-bg-container" />
-      
-      {/* Gradient / Blur Overlay Layer */}
-      <div className={`absolute inset-0 z-[-1] pointer-events-none ${overlayClass}`} />
+      {/* Background System Group (Fixed to viewport to prevent scroll cutoff & stacking context bugs) */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none">
+        {/* Background Image Layer */}
+        <div className="absolute inset-0 ayur-bg-container" />
+        {/* Gradient / Blur Overlay Layer */}
+        <div className={`absolute inset-0 ${overlayClass}`} />
+      </div>
 
       {/* Content Layer */}
-      <div className="relative z-0 min-h-screen flex flex-col">
+      <div className="relative z-10 min-h-screen flex flex-col">
         {children}
       </div>
     </div>

@@ -22,7 +22,7 @@ export default function PatientKioskLandingPage() {
   }, [currentUser, isAnonymous, loading, role, router]);
 
   const containerVariants: Variants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 1 },
     show: {
       opacity: 1,
       transition: { staggerChildren: 0.1, delayChildren: 0.2 }
@@ -30,7 +30,7 @@ export default function PatientKioskLandingPage() {
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
   };
 
@@ -98,7 +98,7 @@ export default function PatientKioskLandingPage() {
         {/* Right Feature Card */}
         <motion.div
           className="relative"
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 1, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, type: "spring", bounce: 0.3 }}
         >
@@ -118,7 +118,7 @@ export default function PatientKioskLandingPage() {
               initial="hidden"
               animate="show"
               variants={{
-                hidden: { opacity: 0 },
+                hidden: { opacity: 1 },
                 show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.4 } }
               }}
             >
