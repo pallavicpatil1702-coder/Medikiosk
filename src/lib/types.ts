@@ -220,5 +220,8 @@ export interface PatientSession {
   nurseStatus?: string;
   doctorStatus?: string;
   assignedDoctorId?: string;
+  currentServingToken?: string;
+  patientsAhead?: number;
+  consultationStartedAt?: any;
 }
 

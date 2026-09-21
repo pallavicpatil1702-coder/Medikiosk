@@ -39,12 +39,16 @@ import {
   FileBadge,
   Sliders,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Play
 } from 'lucide-react';
 import DoctorSummaryAudio from '@/components/DoctorSummaryAudio';
+import { syncQueueStateInFirestore } from '@/hooks/useSmartQueue';
 import { 
   normalizeClinicalSummaryToEnglish, 
-  buildSpokenClinicalSummary 
+  buildSpokenClinicalSummary,
+  normalizePhraseToEnglish,
+  getEnglishQuestionText
 } from '@/lib/clinicalSummaryTranslator';
 import { useState, useEffect, useMemo } from 'react';
 import type { PatientSession, RedFlag, MedicalDocument, Answer, FHIRResource, ClinicalSummary } from '@/lib/types';
@@ -64,6 +68,10 @@ interface EnrichedPatientSession extends PatientSession {
   queuePriority?: 'emergency' | 'high' | 'normal';
   queuePosition?: number;
   queueTokenNumber?: string;
+  currentServingToken?: string;
+  patientsAhead?: number;
+  consultationStartedAt?: any;
+  doctorStatus?: string;
   doctorDecision?: 'accepted' | 'edited' | 'rejected';
   doctorNote?: string;
   doctorReviewedAt?: string;
@@ -137,6 +145,8 @@ function DoctorDashboardContent() {
             documents: data.documents || [],
             redFlags: redFlags,
             clinicalSummary: data.clinicalSummary || data.summary || null,
+            structuredPhysicianSummary: data.structuredPhysicianSummary || null,
+            physicianSummaryStatus: data.physicianSummaryStatus || 'pending',
             consent: data.consent || null,
             status: data.status || 'pending_review',
             triageStatus: data.triageStatus || 'pending_review',
@@ -147,6 +157,10 @@ function DoctorDashboardContent() {
             queuePriority: data.queuePriority,
             queuePosition: data.queuePosition,
             queueTokenNumber: data.queueTokenNumber,
+            currentServingToken: data.currentServingToken,
+            patientsAhead: data.patientsAhead,
+            consultationStartedAt: data.consultationStartedAt,
+            doctorStatus: data.doctorStatus || 'pending',
             doctorDecision: data.doctorDecision,
             doctorNote: data.doctorNote,
             doctorReviewedAt: data.doctorReviewedAt,
@@ -270,6 +284,9 @@ function DoctorDashboardContent() {
 
       await updateDoc(sessionRef, payload);
 
+      // Recalculate queue and notify all waiting patients via onSnapshot
+      await syncQueueStateInFirestore(db);
+
       setSuccessToast(
         decision === 'accepted'
           ? 'Intake accepted and consultation marked as confirmed!'
@@ -277,6 +294,14 @@ function DoctorDashboardContent() {
           ? 'Clinical summary updated and confirmed by physician!'
           : 'Patient intake rejected with documentation saved.'
       );
+
+      // Auto-advance to the next waiting patient in queue
+      const nextPatient = sessions.find(
+        s => s.id !== selectedPatient.id && s.status !== 'confirmed' && s.queueStatus !== 'completed'
+      );
+      if (nextPatient) {
+        setSelectedPatient(nextPatient);
+      }
 
       setIsEditModalOpen(false);
       setIsRejectModalOpen(false);
@@ -289,12 +314,38 @@ function DoctorDashboardContent() {
     }
   };
 
+  // Start Consultation: Mark patient as in_progress with consultation start time & sync queue
+  const handleStartConsultation = async (patient: EnrichedPatientSession) => {
+    setActionLoading(true);
+    try {
+      const sessionRef = doc(db, 'patientSessions', patient.id);
+      await updateDoc(sessionRef, {
+        doctorStatus: 'in_progress',
+        queueStatus: 'doctor_review',
+        consultationStartedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      // Recalculate queue metrics and push real-time updates to all waiting patients
+      await syncQueueStateInFirestore(db);
+
+      setSuccessToast(`Consultation started for ${patient.patient?.name || 'patient'} (${patient.queueTokenNumber || 'Token'})`);
+      setTimeout(() => setSuccessToast(null), 3000);
+    } catch (err: any) {
+      console.error('Error starting consultation:', err);
+      alert(`Could not start consultation: ${err?.message || 'Error'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Open Edit Modal with current values
   const handleOpenEditModal = () => {
     if (!selectedPatient) return;
-    const summary = selectedPatient.clinicalSummary;
+    const rawSummary = selectedPatient.clinicalSummary;
+    const summary = rawSummary ? normalizeClinicalSummaryToEnglish(rawSummary) : null;
     setEditFormData({
-      chiefComplaint: summary?.history?.chiefComplaint || selectedPatient.chiefComplaint || '',
+      chiefComplaint: summary?.history?.chiefComplaint || normalizePhraseToEnglish(selectedPatient.chiefComplaint) || '',
       duration: summary?.history?.duration || '',
       symptoms: (summary?.history?.associatedSymptoms || []).join(', '),
       pastHistory: summary?.pastHistory || '',
@@ -558,6 +609,12 @@ function DoctorDashboardContent() {
                             <span className="text-[11px] font-mono font-bold text-[#1b3d27] bg-[#e4ede1] px-2 py-0.5 rounded-lg border border-[#c7d9c2]">
                               Token: {s.queueTokenNumber || '—'}
                             </span>
+                            {s.doctorStatus === 'in_progress' && (
+                              <span className="text-[10px] font-bold text-[#15803d] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#86efac] flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#16a34a] animate-ping" />
+                                In Consultation
+                              </span>
+                            )}
                             <div className="text-[11px] text-[#6f4827] font-mono">
                               ID: {s.patientId.slice(0, 10)}...
                             </div>
@@ -586,7 +643,7 @@ function DoctorDashboardContent() {
 
                       {/* Chief Complaint */}
                       <div className="mt-2.5 text-xs text-[#1c241e] font-medium line-clamp-1">
-                        <strong className="text-[#556358]">Complaint:</strong> {s.chiefComplaint || 'Not reported'}
+                        <strong className="text-[#556358]">Complaint:</strong> {normalizePhraseToEnglish(s.chiefComplaint) || 'Not reported'}
                       </div>
                       {s.bodyLocations && s.bodyLocations.length > 0 && (
                         <div className="mt-1 text-xs text-[#1c241e] font-medium line-clamp-1">
@@ -653,6 +710,9 @@ function DoctorDashboardContent() {
                       <h2 className="text-xl font-bold font-serif text-[#1b3d27]">
                         {selectedPatient.patient?.name || 'Walk-in Patient'}
                       </h2>
+                      <span className="px-2.5 py-0.5 rounded-lg bg-[#1b3d27] text-white font-mono font-bold text-xs shadow-xs">
+                        Token: {selectedPatient.queueTokenNumber || '—'}
+                      </span>
                       <span
                         className={`text-[11px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider ${
                           selectedPatient.calculatedPriority === 'EMERGENCY'
@@ -677,13 +737,33 @@ function DoctorDashboardContent() {
                     </div>
                   </div>
 
-                  {/* Decision Status Pill if already taken */}
-                  {selectedPatient.doctorDecision && (
-                    <div className="self-start sm:self-auto px-3.5 py-1.5 rounded-2xl bg-[#e4ede1] border border-[#c7d9c2] text-[#234e32] text-xs font-extrabold flex items-center gap-2">
-                      <CheckCircle2 size={15} />
-                      <span>MD Decision: {selectedPatient.doctorDecision.toUpperCase()}</span>
-                    </div>
-                  )}
+                  {/* Consultation Status / Actions */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {selectedPatient.doctorStatus === 'in_progress' ? (
+                      <div className="px-3.5 py-1.5 rounded-2xl bg-[#dcfce7] border border-[#86efac] text-[#15803d] text-xs font-black flex items-center gap-2 shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-[#16a34a] animate-ping" />
+                        <span>IN CONSULTATION</span>
+                      </div>
+                    ) : (selectedPatient.status !== 'confirmed' && selectedPatient.queueStatus !== 'completed') ? (
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleStartConsultation(selectedPatient)}
+                        className="px-4 py-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md transition disabled:opacity-50"
+                      >
+                        <Play size={13} className="fill-current" />
+                        <span>Start Consultation</span>
+                      </button>
+                    ) : null}
+
+                    {/* Decision Status Pill if already taken */}
+                    {selectedPatient.doctorDecision && (
+                      <div className="px-3.5 py-1.5 rounded-2xl bg-[#e4ede1] border border-[#c7d9c2] text-[#234e32] text-xs font-extrabold flex items-center gap-2">
+                        <CheckCircle2 size={15} />
+                        <span>MD Decision: {selectedPatient.doctorDecision.toUpperCase()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Navigation Tabs */}
@@ -743,21 +823,24 @@ function DoctorDashboardContent() {
                     };
 
                     const englishSummary = normalizeClinicalSummaryToEnglish(fallbackSummary);
+                    const s = selectedPatient.structuredPhysicianSummary;
 
-                    const spokenSummaryText = buildSpokenClinicalSummary({
-                      patientName: selectedPatient.patient?.name,
-                      patientAge: selectedPatient.patient?.age,
-                      patientGender: selectedPatient.patient?.gender,
-                      chiefComplaint: englishSummary.history.chiefComplaint,
-                      bodyLocations: selectedPatient.bodyLocations?.map(b => b.name || b.id) || [],
-                      duration: englishSummary.history.duration,
-                      associatedSymptoms: englishSummary.history.associatedSymptoms,
-                      medications: englishSummary.medications,
-                      allergies: englishSummary.allergies,
-                      pastHistory: englishSummary.pastHistory,
-                      triageNote: selectedPatient.triageNote,
-                      redFlags: selectedPatient.redFlags
-                    });
+                    const spokenSummaryText = s?.clinicalHandoff
+                      ? s.clinicalHandoff
+                      : buildSpokenClinicalSummary({
+                          patientName: selectedPatient.patient?.name,
+                          patientAge: selectedPatient.patient?.age,
+                          patientGender: selectedPatient.patient?.gender,
+                          chiefComplaint: englishSummary.history.chiefComplaint,
+                          bodyLocations: selectedPatient.bodyLocations?.map(b => b.name || b.id) || [],
+                          duration: englishSummary.history.duration,
+                          associatedSymptoms: englishSummary.history.associatedSymptoms,
+                          medications: englishSummary.medications,
+                          allergies: englishSummary.allergies,
+                          pastHistory: englishSummary.pastHistory,
+                          triageNote: selectedPatient.triageNote,
+                          redFlags: selectedPatient.redFlags
+                        });
 
                     return (
                     <div className="space-y-6">
@@ -782,6 +865,18 @@ function DoctorDashboardContent() {
                         patientId={selectedPatient.id}
                         patientName={selectedPatient.patient?.name}
                       />
+
+                      {/* AI Physician Clinical Handoff (if available) */}
+                      {s?.clinicalHandoff && (
+                        <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-5 space-y-2 shadow-2xs">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#234e32] flex items-center gap-1.5">
+                            <Sparkles size={14} /> AI Physician Clinical Handoff (English)
+                          </div>
+                          <div className="text-sm text-[#1c241e] leading-relaxed whitespace-pre-wrap font-sans">
+                            {s.clinicalHandoff}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Nurse Triage Handoff Note */}
                       {selectedPatient.triageNote && (
@@ -822,15 +917,24 @@ function DoctorDashboardContent() {
 
                       {/* Symptoms & Medical History Grid (English) */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="rounded-2xl bg-white p-4 border border-[#ded5c2] shadow-2xs">
-                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#556358] mb-1">
-                            Associated Symptoms
+                        <div className="rounded-2xl bg-white p-4 border border-[#ded5c2] shadow-2xs md:col-span-2">
+                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#556358] mb-2 flex items-center justify-between">
+                            <span>Associated Symptoms</span>
+                            <span className="text-[10px] text-[#829277] font-mono normal-case">
+                              {englishSummary.history.associatedSymptoms?.length || 0} findings
+                            </span>
                           </div>
-                          <div className="text-xs text-[#1c241e]">
-                            {englishSummary.history.associatedSymptoms?.length
-                              ? englishSummary.history.associatedSymptoms.join(', ')
-                              : 'None reported'}
-                          </div>
+                          {englishSummary.history.associatedSymptoms?.length ? (
+                            <ul className="list-disc pl-5 space-y-1.5 text-xs text-[#1c241e]">
+                              {englishSummary.history.associatedSymptoms.map((sym, idx) => (
+                                <li key={idx} className="leading-relaxed">
+                                  {sym}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-xs text-[#556358] italic">None reported</div>
+                          )}
                         </div>
 
                         <div className="rounded-2xl bg-white p-4 border border-[#ded5c2] shadow-2xs">
@@ -895,20 +999,29 @@ function DoctorDashboardContent() {
                           No questionnaire answers recorded for this session.
                         </div>
                       ) : (
-                        selectedPatient.answers.map((ans: Answer, i: number) => (
-                          <div key={i} className="p-4 rounded-2xl bg-white border border-[#ded5c2] space-y-1.5 shadow-2xs">
-                            <div className="flex items-center justify-between text-[11px] text-[#556358] font-mono">
-                              <span>Question {i + 1}</span>
-                              <span className="capitalize">{ans.inputMethod || 'kiosk'}</span>
+                        selectedPatient.answers.map((ans: Answer, i: number) => {
+                          const questionDisplay = getEnglishQuestionText(ans.questionId) || normalizePhraseToEnglish(ans.questionText) || ans.questionId;
+                          const englishAnswer = ans.normalizedEnglishText || normalizePhraseToEnglish(ans.answer);
+                          return (
+                            <div key={i} className="p-4 rounded-2xl bg-white border border-[#ded5c2] space-y-1.5 shadow-2xs">
+                              <div className="flex items-center justify-between text-[11px] text-[#556358] font-mono">
+                                <span>Question {i + 1}</span>
+                                <span className="capitalize">{ans.inputMethod || 'kiosk'}</span>
+                              </div>
+                              <div className="text-xs font-bold text-[#1b3d27]">
+                                {questionDisplay}
+                              </div>
+                              <div className="text-xs text-[#1c241e] bg-[#fbf9f4] p-2.5 rounded-xl border border-[#ded5c2]">
+                                {englishAnswer || ans.answer}
+                                {ans.answer && englishAnswer && ans.answer !== englishAnswer && (
+                                  <div className="text-[10px] text-[#829277] mt-1 font-mono">
+                                    Original response: {ans.answer}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-xs font-bold text-[#1b3d27]">
-                              {ans.questionText || ans.questionId}
-                            </div>
-                            <div className="text-xs text-[#1c241e] bg-[#fbf9f4] p-2.5 rounded-xl border border-[#ded5c2]">
-                              {ans.answer}
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   )}

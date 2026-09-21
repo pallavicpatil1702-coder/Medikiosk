@@ -37,7 +37,8 @@ import {
   Loader2,
   Stethoscope,
   Pill,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
@@ -245,157 +246,248 @@ function PatientDashboardContent() {
           </div>
         </div>
 
-        {/* Active Consultation Queue Info */}
-        {activeTab === 'home' && (
-          <>
-            {patientQueueInfo && patientQueueInfo.queueStatus !== 'completed' && (
+        {/* Home Tab: Consultation Status Card + Original Intake Hero */}
+        {activeTab === 'home' && (() => {
+          const hasActiveConsultation = Boolean(
+            patientQueueInfo &&
+            patientQueueInfo.queueStatus !== 'completed' &&
+            patientQueueInfo.doctorStatus !== 'completed' &&
+            patientQueueInfo.queueTokenNumber
+          );
 
-          <div className="mt-8 rounded-3xl bg-white border border-[#234e32]/20 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-[#234e32]" />
-            <div className="p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 border-b border-slate-100 pb-6">
-                <div>
-                  <h2 className="text-2xl font-black text-[#1b3d27] tracking-tight">{t('Current Consultation')}</h2>
-                  <p className="text-[#556358] text-sm mt-1">{t('Your live queue status and estimated wait time')}</p>
-                </div>
-                
-                {/* Fixed Queue Token Number */}
-                <div className="flex flex-col items-center bg-[#f8f5ee] px-8 py-4 rounded-2xl border border-[#ded5c2] shadow-sm">
-                  <span className="text-xs font-bold text-[#6b7c6e] uppercase tracking-wider mb-1">{t('Your Token')}</span>
-                  <div className="text-4xl font-black text-[#1b3d27]">
-                    #{patientQueueInfo.queueTokenNumber || '--'}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#fbf9f4] p-5 rounded-2xl border border-[#ded5c2] flex flex-col justify-center">
-                  <div className="flex items-center gap-2 mb-2 text-[#556358]">
-                    <Users size={18} />
-                    <span className="font-bold text-sm">{t('Patients Ahead')}</span>
-                  </div>
-                  <div className="text-3xl font-black text-[#1b3d27]">
-                    {patientQueueInfo.queuePosition > 1 ? patientQueueInfo.queuePosition - 1 : 0}
-                  </div>
-                </div>
+          const displayToken = patientQueueInfo?.queueTokenNumber || '--';
+          const patientsAhead = patientQueueInfo?.patientsAhead !== undefined ? patientQueueInfo.patientsAhead : 0;
+          const isYourTurn = hasActiveConsultation && (
+            patientsAhead === 0 ||
+            patientQueueInfo?.queueStatus === 'doctor_review' ||
+            patientQueueInfo?.doctorStatus === 'in_progress'
+          );
+          const displayServingToken = isYourTurn ? displayToken : (patientQueueInfo?.currentServingToken || '--');
+          const displayWait = isYourTurn ? '0 min' : `~${patientQueueInfo?.estimatedWaitMinutes ?? 0} min`;
+          const expectedTurnStr = isYourTurn ? 'NOW' : (patientQueueInfo?.expectedTurnTimeStr || 'Calculating...');
 
-                <div className="bg-[#fbf9f4] p-5 rounded-2xl border border-[#ded5c2] flex flex-col justify-center">
-                  <div className="flex items-center gap-2 mb-2 text-[#556358]">
-                    <Clock size={18} />
-                    <span className="font-bold text-sm">{t('Estimated Wait')}</span>
+          return (
+            <>
+              {/* Compact Consultation Status Card */}
+              <div className="mt-6 mb-8 rounded-3xl bg-white border border-[#ded5c2] shadow-sm overflow-hidden">
+                <div className="bg-[#fbf9f4] px-6 py-3.5 border-b border-[#ded5c2] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity size={18} className="text-[#234e32]" />
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-[#1b3d27]">
+                      {t('Consultation Status')}
+                    </h2>
                   </div>
-                  <div className="flex items-end gap-1.5">
-                    <div className="text-3xl font-black text-[#1b3d27]">
-                      {patientQueueInfo.estimatedWaitMinutes}
+                  {hasActiveConsultation && (
+                    <div className="flex items-center gap-2 bg-[#f0fdf4] text-[#16a34a] px-3 py-1 rounded-full border border-[#bbf7d0] font-bold text-xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#16a34a]"></span>
+                      </span>
+                      <span>{t('Live Real-Time Sync')}</span>
                     </div>
-                    <span className="text-[#556358] font-bold text-sm mb-1">{t('mins')}</span>
-                  </div>
+                  )}
                 </div>
 
-                <div className="bg-[#f8f5ee] p-5 rounded-2xl border border-[#ded5c2] flex flex-col justify-center">
-                  <div className="flex items-center gap-2 mb-3 text-[#556358]">
-                    <Activity size={18} />
-                    <span className="font-bold text-sm">{t('Current Status')}</span>
+                {hasActiveConsultation ? (
+                  <div className="p-6">
+                    {/* Your Turn Highlight */}
+                    {isYourTurn && (
+                      <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-[#166534] to-[#15803d] text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <Sparkles size={24} className="text-amber-300 shrink-0" />
+                          <div>
+                            <div className="font-black text-sm uppercase tracking-wider">{t("IT'S YOUR TURN — PLEASE ENTER")}</div>
+                            <p className="text-xs text-emerald-100">{t('The doctor is ready to see you. Please proceed to the OPD cabin.')}</p>
+                          </div>
+                        </div>
+                        <a
+                          href="/patient/queue"
+                          className="px-4 py-2 rounded-xl bg-white text-[#166534] font-black text-xs uppercase tracking-wider shrink-0 shadow-xs"
+                        >
+                          {t('View Room')}
+                        </a>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                      {/* Your Token */}
+                      <div className="bg-[#f8f5ee] p-3.5 rounded-2xl border border-[#ded5c2]">
+                        <span className="text-[10px] font-bold text-[#6b7c6e] uppercase tracking-wider block mb-1">
+                          {t('Your Token')}
+                        </span>
+                        <div className="text-2xl font-black text-[#1b3d27]">
+                          {displayToken}
+                        </div>
+                      </div>
+
+                      {/* Now Serving */}
+                      <div className="bg-[#e4ede1] p-3.5 rounded-2xl border border-[#c7d9c2]">
+                        <span className="text-[10px] font-bold text-[#234e32] uppercase tracking-wider block mb-1">
+                          {t('Now Serving')}
+                        </span>
+                        <div className="text-2xl font-black text-[#234e32]">
+                          {displayServingToken}
+                        </div>
+                      </div>
+
+                      {/* Patients Ahead */}
+                      <div className="bg-[#fbf9f4] p-3.5 rounded-2xl border border-[#ded5c2]">
+                        <span className="text-[10px] font-bold text-[#556358] uppercase tracking-wider block mb-1">
+                          {t('Patients Ahead')}
+                        </span>
+                        <div className="text-2xl font-black text-[#1c241e]">
+                          {patientsAhead}
+                        </div>
+                      </div>
+
+                      {/* Estimated Wait */}
+                      <div className="bg-[#fbf9f4] p-3.5 rounded-2xl border border-[#ded5c2]">
+                        <span className="text-[10px] font-bold text-[#556358] uppercase tracking-wider block mb-1">
+                          {t('Estimated Wait')}
+                        </span>
+                        <div className="text-2xl font-black text-[#1c241e]">
+                          {displayWait}
+                        </div>
+                      </div>
+
+                      {/* Expected Turn */}
+                      <div className="bg-[#f0f9ff] p-3.5 rounded-2xl border border-[#bae6fd]">
+                        <span className="text-[10px] font-bold text-[#0369a1] uppercase tracking-wider block mb-1">
+                          {t('Expected Turn')}
+                        </span>
+                        <div className="text-xl sm:text-2xl font-black text-[#0c4a6e] truncate">
+                          {expectedTurnStr}
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className={`p-3.5 rounded-2xl border ${isYourTurn ? 'bg-[#dcfce7] border-[#86efac] text-[#166534]' : 'bg-[#fffbeb] border-[#fde68a] text-[#b45309]'}`}>
+                        <span className="text-[10px] font-bold uppercase tracking-wider block mb-1">
+                          {t('Status')}
+                        </span>
+                        <div className="text-xs sm:text-sm font-black uppercase tracking-wide leading-tight mt-1 truncate">
+                          {isYourTurn ? t('YOUR TURN — PLEASE ENTER') : t('WAITING')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active consultation timings */}
+                    {patientQueueInfo?.consultationStartedAtStr && !isYourTurn && (
+                      <div className="mt-4 pt-3 border-t border-[#ded5c2]/60 flex flex-wrap items-center justify-between text-xs text-[#556358]">
+                        <div className="flex items-center gap-4">
+                          <span><strong className="text-[#1c241e]">Started:</strong> {patientQueueInfo.consultationStartedAtStr}</span>
+                          <span>•</span>
+                          <span><strong className="text-[#1c241e]">Expected Finish:</strong> {patientQueueInfo.expectedFinishTimeStr}</span>
+                        </div>
+                        <a href="/patient/queue" className="text-[#234e32] font-bold hover:underline">
+                          {t('Open Live Waiting Room →')}
+                        </a>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#16a34a] animate-pulse" />
-                    <span className="font-bold text-[#1b3d27] capitalize">
-                      {patientQueueInfo.queueStatus?.replace('_', ' ') || t('Waiting')}
-                    </span>
+                ) : (
+                  <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-[#1c241e] mb-0.5">{t('No active consultation')}</h3>
+                      <p className="text-xs text-[#556358]">{t('You are not currently in the clinic consultation queue.')}</p>
+                    </div>
+                    <a
+                      href="/patient/language"
+                      className="px-5 py-2.5 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white text-xs font-extrabold transition shadow-xs flex items-center gap-1.5"
+                    >
+                      <PlusCircle size={15} />
+                      <span>{t('Start Consultation')}</span>
+                    </a>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Start Intake Hero - Only show if not currently in queue */}
-        {!patientQueueInfo || patientQueueInfo.queueStatus === 'completed' ? (
-          <div className="mt-8 grid lg:grid-cols-2 gap-10 items-center">
-            {/* Left Column */}
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#e4ede1] border border-[#c7d9c2] px-4 py-1.5 text-xs font-bold text-[#234e32] mb-6 shadow-xs">
-                <Languages size={15} /> {t('Multilingual • Touch Friendly • Voice Intake')}
+                )}
               </div>
 
-              <h2 className="text-4xl sm:text-5xl font-serif font-bold text-[#1b3d27] tracking-tight leading-[1.15] mb-5">
-                {t('Smart AI-Assisted')} <br />
-                <span className="text-[#6f4827]">{t('Healthcare Intake')}</span>
-              </h2>
-
-              <p className="text-base text-[#4a5749] leading-relaxed mb-8 max-w-xl">
-                {t('Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.')}
-              </p>
-
-              <div className="flex flex-wrap gap-4">
-                <a
-                  href="/patient/language"
-                  className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
-                >
-                  {t('Start Consultation')} <ChevronRight size={20} />
-                </a>
-              </div>
-
-              <div className="mt-8 flex items-center gap-6 text-xs text-[#556358] font-semibold">
-                <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> {t('Touch Screen')}</span>
-                <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> {t('Secure Session')}</span>
-                <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> {t('9 Languages')}</span>
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="rounded-3xl bg-[#fbf9f4]/95 backdrop-blur-xl border border-[#ded5c2] p-8 shadow-[0_15px_40px_-10px_rgba(45,35,20,0.12)]">
-              <div className="flex items-center gap-3.5 mb-6 pb-5 border-b border-[#ded5c2]/70">
-                <div className="w-12 h-12 rounded-2xl bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] flex items-center justify-center shadow-xs">
-                  <HeartPulse size={24} />
-                </div>
+              {/* Original Intake Hero Section - Always Visible */}
+              <div className="mt-4 grid lg:grid-cols-2 gap-10 items-center">
+                {/* Left Column */}
                 <div>
-                  <h3 className="font-bold text-[#1b3d27] text-lg">{t('Holistic Intake Flow')}</h3>
-                  <p className="text-xs font-semibold text-[#556358]">{t('Review by attending doctor required')}</p>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#e4ede1] border border-[#c7d9c2] px-4 py-1.5 text-xs font-bold text-[#234e32] mb-6 shadow-xs">
+                    <Languages size={15} /> {t('Multilingual • Touch Friendly • Voice Intake')}
+                  </div>
+
+                  <h2 className="text-4xl sm:text-5xl font-serif font-bold text-[#1b3d27] tracking-tight leading-[1.15] mb-5">
+                    {t('Smart AI-Assisted')} <br />
+                    <span className="text-[#6f4827]">{t('Healthcare Intake')}</span>
+                  </h2>
+
+                  <p className="text-base text-[#4a5749] leading-relaxed mb-8 max-w-xl">
+                    {t('Helping healthcare professionals spend less time collecting routine history and more time caring for patients, grounded in holistic clinical wellness.')}
+                  </p>
+
+                  <div className="flex flex-wrap gap-4">
+                    <a
+                      href="/patient/language"
+                      className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
+                    >
+                      {t('Start Consultation')} <ChevronRight size={20} />
+                    </a>
+                  </div>
+
+                  <div className="mt-8 flex items-center gap-6 text-xs text-[#556358] font-semibold">
+                    <span className="flex items-center gap-1.5"><Activity size={16} className="text-[#234e32]" /> {t('Touch Screen')}</span>
+                    <span className="flex items-center gap-1.5"><ShieldCheck size={16} className="text-[#234e32]" /> {t('Secure Session')}</span>
+                    <span className="flex items-center gap-1.5"><Languages size={16} className="text-[#234e32]" /> {t('9 Languages')}</span>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="rounded-3xl bg-[#fbf9f4]/95 backdrop-blur-xl border border-[#ded5c2] p-8 shadow-[0_15px_40px_-10px_rgba(45,35,20,0.12)]">
+                  <div className="flex items-center gap-3.5 mb-6 pb-5 border-b border-[#ded5c2]/70">
+                    <div className="w-12 h-12 rounded-2xl bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] flex items-center justify-center shadow-xs">
+                      <HeartPulse size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#1b3d27] text-lg">{t('Holistic Intake Flow')}</h3>
+                      <p className="text-xs font-semibold text-[#556358]">{t('Review by attending doctor required')}</p>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-4 text-sm text-[#4a5749] font-medium">
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Patient Identification & Consent Logging')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Chief Complaint Logging in 9 Languages')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Speak naturally using Voice Microphone')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Listen to questions using Speech Audio')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Medical Report & Document OCR Upload')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Definitive Clinical Red-Flag Triage')}
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
+                      {t('Final decision by Attending Doctor')}
+                    </li>
+                  </ul>
+                  <div className="mt-8 bg-[#e4ede1] rounded-2xl p-4 flex items-start gap-3 border border-[#c7d9c2]">
+                    <ShieldCheck size={20} className="text-[#234e32] shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#234e32] font-semibold leading-relaxed">
+                      {t('Your privacy is protected. MediKiosk complies with healthcare data security standards.')}
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              <ul className="space-y-4 text-sm text-[#4a5749] font-medium">
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Patient Identification & Consent Logging')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Chief Complaint Logging in 9 Languages')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Speak naturally using Voice Microphone')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Listen to questions using Speech Audio')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Medical Report & Document OCR Upload')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Definitive Clinical Red-Flag Triage')}
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#234e32] shrink-0" />
-                  {t('Final decision by Attending Doctor')}
-                </li>
-              </ul>
-              <div className="mt-8 bg-[#e4ede1] rounded-2xl p-4 flex items-start gap-3 border border-[#c7d9c2]">
-                <ShieldCheck size={20} className="text-[#234e32] shrink-0 mt-0.5" />
-                <p className="text-xs text-[#234e32] font-semibold leading-relaxed">
-                  {t('Your privacy is protected. MediKiosk complies with healthcare data security standards.')}
-                </p>
-              </div>
-            </div>
-          </div>
-            ) : null}
-          </>
-        )}
+            </>
+          );
+        })()}
 
 
         

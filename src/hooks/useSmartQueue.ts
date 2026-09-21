@@ -1,21 +1,68 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { PatientSession } from '@/lib/types';
+import {
+  DEFAULT_CONSULTATION_MINUTES,
+  QueuePatient,
+  QueueMetrics,
+  calculateQueueMetrics
+} from '@/lib/queueMetrics';
 
-export const DEFAULT_CONSULTATION_MINUTES = 15;
+export { DEFAULT_CONSULTATION_MINUTES, calculateQueueMetrics };
+export type { QueuePatient, QueueMetrics };
 
-export interface QueuePatient extends PatientSession {
-  queuePosition: number;
-  estimatedWaitMinutes: number;
+/**
+ * Recalculates and updates queue metadata across active sessions in Firestore.
+ * Used by Doctor dashboard when starting or completing consultations.
+ */
+export async function syncQueueStateInFirestore(
+  firestoreInstance = db,
+  avgMinutes = DEFAULT_CONSULTATION_MINUTES
+) {
+  try {
+    const q = query(
+      collection(firestoreInstance, 'patientSessions'),
+      where('queueStatus', 'in', ['waiting', 'triage', 'doctor_review'])
+    );
+    const snap = await getDocs(q);
+    const sessions: PatientSession[] = [];
+    snap.forEach(docSnap => {
+      sessions.push({ ...docSnap.data(), firestoreSessionId: docSnap.id } as PatientSession);
+    });
+
+    const { activeQueue, currentServingToken } = calculateQueueMetrics(sessions, avgMinutes);
+
+    const updatePromises = activeQueue.map(patient => {
+      if (!patient.firestoreSessionId) return Promise.resolve();
+      const docRef = doc(firestoreInstance, 'patientSessions', patient.firestoreSessionId);
+      return updateDoc(docRef, {
+        queuePosition: patient.queuePosition,
+        patientsAhead: patient.patientsAhead,
+        estimatedWaitMinutes: patient.estimatedWaitMinutes,
+        currentServingToken,
+        updatedAt: serverTimestamp()
+      }).catch(err => {
+        console.warn(`[SmartQueue] Failed updating queue metadata for doc ${patient.firestoreSessionId}:`, err);
+      });
+    });
+
+    await Promise.all(updatePromises);
+    return { success: true, count: activeQueue.length, currentServingToken };
+  } catch (err) {
+    console.error('[SmartQueue] Error syncing queue state to Firestore:', err);
+    return { success: false, error: err };
+  }
 }
 
 export function useSmartQueue() {
   const [queue, setQueue] = useState<QueuePatient[]>([]);
+  const [currentServingToken, setCurrentServingToken] = useState<string>('--');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // We fetch all non-completed sessions that are in the queue.
     const q = query(
       collection(db, 'patientSessions'),
       where('queueStatus', 'in', ['waiting', 'triage', 'doctor_review'])
@@ -23,80 +70,30 @@ export function useSmartQueue() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const sessions: PatientSession[] = [];
-      snapshot.forEach((doc) => {
-        sessions.push({ ...doc.data(), firestoreSessionId: doc.id } as PatientSession);
+      snapshot.forEach((docSnap) => {
+        sessions.push({ ...docSnap.data(), firestoreSessionId: docSnap.id } as PatientSession);
       });
 
-      // Sort the queue on the client to avoid complex Firestore composite indexes
-      // Sort logic:
-      // 1. Status: doctor_review > triage > waiting
-      // 2. Priority: emergency (100) > high (50) > normal (0)
-      // 3. FIFO: queueJoinedAt ascending
-      
-      const statusWeight = {
-        doctor_review: 3,
-        triage: 2,
-        waiting: 1,
-        completed: 0
-      };
-
-      sessions.sort((a, b) => {
-        // 1. Status
-        const weightA = statusWeight[a.queueStatus || 'waiting'] || 0;
-        const weightB = statusWeight[b.queueStatus || 'waiting'] || 0;
-        if (weightA !== weightB) return weightB - weightA; // Higher weight first
-
-        // 2. Priority Score
-        const scoreA = a.queuePriorityScore || 0;
-        const scoreB = b.queuePriorityScore || 0;
-        if (scoreA !== scoreB) return scoreB - scoreA; // Higher score first
-
-        // 3. FIFO (queueJoinedAt)
-        // Handle potential null/pending timestamps from Firestore
-        let timeA = Date.now();
-        let timeB = Date.now();
-        if (a.queueJoinedAt) {
-          timeA = typeof a.queueJoinedAt.toMillis === 'function' ? a.queueJoinedAt.toMillis() : Date.now();
-        }
-        if (b.queueJoinedAt) {
-          timeB = typeof b.queueJoinedAt.toMillis === 'function' ? b.queueJoinedAt.toMillis() : Date.now();
-        }
-        
-        return timeA - timeB; // Earlier time first
-      });
-
-      // Now assign position and ETA
-      // Only people in 'waiting' or 'triage' count towards waiting time for others.
-      // People in 'doctor_review' are already with the doctor.
-      let positionCounter = 1;
-      
-      const processedQueue = sessions.map((session, index) => {
-        const position = positionCounter++;
-        // ETA = (position - 1) * 15
-        const estimatedWaitMinutes = Math.max(0, (position - 1) * DEFAULT_CONSULTATION_MINUTES);
-        
-        return {
-          ...session,
-          queuePosition: position,
-          estimatedWaitMinutes
-        } as QueuePatient;
-      });
-
-      setQueue(processedQueue);
+      const metrics = calculateQueueMetrics(sessions);
+      setQueue(metrics.activeQueue);
+      setCurrentServingToken(metrics.currentServingToken);
       setLoading(false);
     }, (err) => {
-      console.error("Error fetching queue:", err);
+      console.error("Error fetching smart queue:", err);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Helper to get specific patient's info
-  const getPatientQueueInfo = (sessionId: string | undefined) => {
-    if (!sessionId) return null;
-    return queue.find(p => p.firestoreSessionId === sessionId) || null;
+  const getPatientQueueInfo = (sessionId?: string, patientId?: string) => {
+    if (!sessionId && !patientId) return null;
+    return queue.find(p => 
+      (sessionId && p.firestoreSessionId === sessionId) ||
+      (patientId && p.patient?.id === patientId) ||
+      (patientId && (p as any).patientId === patientId)
+    ) || null;
   };
 
-  return { queue, loading, getPatientQueueInfo };
+  return { queue, currentServingToken, loading, getPatientQueueInfo };
 }

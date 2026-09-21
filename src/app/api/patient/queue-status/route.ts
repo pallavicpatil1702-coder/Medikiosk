@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  calculateQueueMetrics,
+  formatTokenNumber,
+  DEFAULT_CONSULTATION_MINUTES
+} from '@/lib/queueMetrics';
+import { PatientSession } from '@/lib/types';
 
 export async function POST(req: Request) {
   try {
@@ -10,90 +16,117 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing sessionId or patientId' }, { status: 400 });
     }
 
-    // Query all waiting/triage/doctor_review sessions
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDayMs = startOfDay.getTime();
+
+    // Query all active sessions: waiting, triage, doctor_review
     const sessionsQuery = query(
       collection(db, 'patientSessions'),
       where('queueStatus', 'in', ['waiting', 'triage', 'doctor_review'])
     );
     const snapshot = await getDocs(sessionsQuery);
 
-    const sessions: any[] = [];
+    const sessions: PatientSession[] = [];
     snapshot.forEach(docSnap => {
-      sessions.push({ ...docSnap.data(), firestoreSessionId: docSnap.id });
+      sessions.push({ ...docSnap.data(), firestoreSessionId: docSnap.id } as PatientSession);
     });
 
-    const statusWeight: Record<string, number> = {
-      doctor_review: 3,
-      triage: 2,
-      waiting: 1,
-      completed: 0
-    };
+    // Check if target session is already completed or from past day
+    let completedTarget: any = null;
+    if (sessionId) {
+      const docRef = doc(db, 'patientSessions', sessionId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        let sessionTime = 0;
+        if (data.queueJoinedAt) {
+          sessionTime = typeof data.queueJoinedAt.toMillis === 'function'
+            ? data.queueJoinedAt.toMillis()
+            : (data.queueJoinedAt.seconds ? data.queueJoinedAt.seconds * 1000 : new Date(data.queueJoinedAt).getTime());
+        } else if (data.createdAt) {
+          sessionTime = typeof data.createdAt.toMillis === 'function'
+            ? data.createdAt.toMillis()
+            : (data.createdAt.seconds ? data.createdAt.seconds * 1000 : new Date(data.createdAt).getTime());
+        }
 
-    sessions.sort((a, b) => {
-      const weightA = statusWeight[a.queueStatus || 'waiting'] || 0;
-      const weightB = statusWeight[b.queueStatus || 'waiting'] || 0;
-      if (weightA !== weightB) return weightB - weightA;
-
-      const scoreA = a.queuePriorityScore || 0;
-      const scoreB = b.queuePriorityScore || 0;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-
-      let timeA = Date.now();
-      let timeB = Date.now();
-      
-      if (a.queueJoinedAt) {
-        timeA = a.queueJoinedAt.seconds ? a.queueJoinedAt.seconds * 1000 : (a.queueJoinedAt._seconds ? a.queueJoinedAt._seconds * 1000 : Date.now());
-      }
-      if (b.queueJoinedAt) {
-        timeB = b.queueJoinedAt.seconds ? b.queueJoinedAt.seconds * 1000 : (b.queueJoinedAt._seconds ? b.queueJoinedAt._seconds * 1000 : Date.now());
-      }
-      
-      return timeA - timeB;
-    });
-
-    let positionCounter = 1;
-    let targetSession = null;
-
-    for (const session of sessions) {
-      const position = positionCounter++;
-      const estimatedWaitMinutes = Math.max(0, (position - 1) * 15); // Fallback to 15 if import fails
-
-      if ((sessionId && session.firestoreSessionId === sessionId) || (patientId && session.patientId === patientId)) {
-        targetSession = {
-          ...session,
-          queuePosition: position,
-          estimatedWaitMinutes
-        };
-        break; // Found it
+        if (data?.queueStatus === 'completed' || data?.doctorStatus === 'completed' || sessionTime < startOfDayMs) {
+          completedTarget = {
+            queueStatus: 'completed',
+            doctorStatus: 'completed',
+            queueTokenNumber: formatTokenNumber(data.queueTokenNumber),
+            currentServingToken: '--',
+            patientsAhead: 0,
+            estimatedWaitMinutes: 0,
+            expectedTurnTimeStr: 'NOW',
+            firestoreSessionId: sessionId
+          };
+        }
       }
     }
 
-    if (!targetSession) {
-      // Check if it's completed
-      if (sessionId) {
-        const docRef = doc(db, 'patientSessions', sessionId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data?.queueStatus === 'completed') {
-            return NextResponse.json({
-              queueStatus: 'completed'
-            });
-          }
+    if (completedTarget) {
+      return NextResponse.json(completedTarget);
+    }
+
+    // Recalculate queue metrics with 10-minute default consultation
+    const { activeQueue, currentServingToken } = calculateQueueMetrics(sessions, DEFAULT_CONSULTATION_MINUTES);
+
+    let target = activeQueue.find(p => 
+      (sessionId && p.firestoreSessionId === sessionId) ||
+      (patientId && (p.patient?.id === patientId || (p as any).patientId === patientId))
+    );
+
+    // If target not in active list yet (e.g. newly created), check direct document
+    if (!target && sessionId) {
+      const docRef = doc(db, 'patientSessions', sessionId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() as PatientSession;
+        if (data.queueStatus !== 'completed') {
+          const freshSessions = [...sessions, { ...data, firestoreSessionId: sessionId }];
+          const freshMetrics = calculateQueueMetrics(freshSessions, DEFAULT_CONSULTATION_MINUTES);
+          target = freshMetrics.activeQueue.find(p => p.firestoreSessionId === sessionId);
         }
       }
+    }
 
+    if (!target) {
       return NextResponse.json({ error: 'Session not found in queue' }, { status: 404 });
     }
 
-    // Only return the necessary public info, absolutely NO PHI
+    // Persist calculated queue state to Firestore so onSnapshot listeners get it immediately
+    if (target.firestoreSessionId) {
+      try {
+        const docRef = doc(db, 'patientSessions', target.firestoreSessionId);
+        await updateDoc(docRef, {
+          queueTokenNumber: target.queueTokenNumber,
+          queuePosition: target.queuePosition,
+          patientsAhead: target.patientsAhead,
+          estimatedWaitMinutes: target.estimatedWaitMinutes,
+          currentServingToken,
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.warn('[QueueStatusAPI] Notice: could not persist queue metadata directly:', err);
+      }
+    }
+
+    // Only return clean queue info, no PHI
     return NextResponse.json({
-      queueStatus: targetSession.queueStatus,
-      queuePriority: targetSession.queuePriority,
-      queuePosition: targetSession.queuePosition,
-      estimatedWaitMinutes: targetSession.estimatedWaitMinutes,
-      queueTokenNumber: targetSession.queueTokenNumber,
-      firestoreSessionId: targetSession.firestoreSessionId,
+      queueStatus: target.queueStatus || 'waiting',
+      doctorStatus: target.doctorStatus || 'pending',
+      queuePriority: target.queuePriority || 'normal',
+      queuePosition: target.queuePosition,
+      patientsAhead: target.patientsAhead,
+      estimatedWaitMinutes: target.estimatedWaitMinutes,
+      queueTokenNumber: target.queueTokenNumber,
+      currentServingToken: target.currentServingToken || currentServingToken,
+      expectedTurnTimeStr: target.expectedTurnTimeStr,
+      consultationStartedAtStr: target.consultationStartedAtStr,
+      expectedFinishTimeStr: target.expectedFinishTimeStr,
+      consultationStartedAt: target.consultationStartedAt,
+      firestoreSessionId: target.firestoreSessionId,
     });
   } catch (error: any) {
     console.error('Queue status error:', error);

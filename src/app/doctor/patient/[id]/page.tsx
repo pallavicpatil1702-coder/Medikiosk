@@ -28,7 +28,7 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
       
       // 1. Check local active session
       if (session?.clinicalSummary && (session.clinicalSummary.patientId === params.id || session.firestoreSessionId === params.id || (session as any).id === params.id)) {
-        setSummary(session.clinicalSummary);
+        setSummary(normalizeClinicalSummaryToEnglish(session.clinicalSummary));
         setStructuredSummary(session.structuredPhysicianSummary || null);
         setAyurvedaReferences(session.ayurvedaReferences || null);
         setMedicationSafetyAlerts((session as any).medicationSafetyAlerts || null);
@@ -69,7 +69,7 @@ export default function PatientReviewPage({ params }: { params: { id: string } }
             status: data.status || 'pending'
           };
 
-          setSummary(loadedSummary);
+          setSummary(normalizeClinicalSummaryToEnglish(loadedSummary));
           setStructuredSummary(data.structuredPhysicianSummary || null);
           setAyurvedaReferences(data.ayurvedaReferences || null);
           setSummaryStatus(data.physicianSummaryStatus || 'pending');

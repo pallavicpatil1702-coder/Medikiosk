@@ -3,6 +3,7 @@ import { getApps, initializeApp, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import Groq from 'groq-sdk';
 import type { PatientSession, StructuredPhysicianSummary } from '@/lib/types';
+import { normalizePhraseToEnglish, getEnglishQuestionText } from '@/lib/clinicalSummaryTranslator';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || 'missing',
@@ -49,11 +50,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ summary: sessionData.structuredPhysicianSummary });
     }
 
-    // Build the payload for the LLM
+    // Build the payload for the LLM with English question lookups and normalized texts
     const payloadForAI = {
-      chiefComplaint: sessionData.chiefComplaint || 'Not reported',
-      answers: (sessionData.answers || []).map(a => `${a.questionText || a.questionId}: ${a.answer}`),
-      knownFacts: (sessionData.knownFacts || []).map(f => `${f.questionId}: ${f.answer}`),
+      chiefComplaint: sessionData.chiefComplaint ? (normalizePhraseToEnglish(sessionData.chiefComplaint) || sessionData.chiefComplaint) : 'Not reported',
+      answers: (sessionData.answers || []).map(a => `${getEnglishQuestionText(a.questionId) || a.questionText || a.questionId}: ${a.normalizedEnglishText || a.answer}`),
+      knownFacts: (sessionData.knownFacts || []).map(f => `${getEnglishQuestionText(f.questionId) || f.questionId}: ${f.normalizedEnglishText || f.answer}`),
       bodyLocations: (sessionData.bodyLocations || []).map(l => `${l.name} (${l.view} ${l.side || ''})`),
       redFlags: (sessionData.redFlags || []).map(r => `${r.type}: ${r.description}`),
       extractedData: sessionData.extractedData || 'None',

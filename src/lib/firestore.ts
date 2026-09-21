@@ -154,23 +154,27 @@ export const syncSessionToFirestore = async (
       }
       if (!session.queueTokenNumber) {
         try {
-          // Get today's start at midnight
-          const startOfDay = new Date();
-          startOfDay.setHours(0, 0, 0, 0);
-          
-          // Query all sessions that joined the queue today
-          const sessionsQuery = query(
-            collection(db, 'patientSessions'),
-            where('queueJoinedAt', '>=', startOfDay)
-          );
-          const snapshot = await getDocs(sessionsQuery);
-          
-          // Token number is sequential count of today's patients + 1
-          queueFields.queueTokenNumber = `#${snapshot.size + 1}`;
-        } catch (e) {
-          console.error("Failed to generate sequential token:", e);
-          // Fallback to random if index is missing or query fails
-          queueFields.queueTokenNumber = `#${Math.floor(100 + Math.random() * 900)}`;
+          // Fetch sequential token from secure server API respecting current clinic operating day
+          if (typeof window !== 'undefined') {
+            const res = await fetch('/api/patient/assign-token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ patientId })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.token) {
+                queueFields.queueTokenNumber = data.token;
+              }
+            }
+          }
+        } catch (apiErr) {
+          console.warn("API sequential token fetch error:", apiErr);
+        }
+
+        if (!queueFields.queueTokenNumber) {
+          // Fallback start of day token
+          queueFields.queueTokenNumber = '#001';
         }
       }
     }
