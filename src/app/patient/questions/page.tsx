@@ -3,8 +3,8 @@
 import Header from '@/components/Header';
 import ProgressBar from '@/components/ProgressBar';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
-import { Sparkles, Mic, Check, User, AlertCircle, Send, RotateCcw, Loader2, Volume2, ArrowRight } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { Sparkles, Mic, Check, User, AlertCircle, Send, RotateCcw, Loader2, Volume2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
 import type { Answer, RedFlag, Question, PatientSession } from '@/lib/types';
@@ -12,13 +12,17 @@ import { useTranslation } from '@/lib/i18n';
 import { useBhashiniVoice } from '@/hooks/useBhashiniVoice';
 import { useSync } from '@/hooks/useSync';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { normalizeQuestion, mapAnswerToNormalizedEnglish } from '@/lib/questionNormalizer';
 
 export default function QuestionsPage() {
   const [chiefComplaint, setChiefComplaint] = useState<string | undefined>(undefined);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [normalizedAnswer, setNormalizedAnswer] = useState('');
+  const [selectedChoice, setSelectedChoice] = useState<string>('');
+  const [selectedMultiChoices, setSelectedMultiChoices] = useState<string[]>([]);
   const [currentQ, setCurrentQ] = useState<Question | null>(null);
+  const [historyStack, setHistoryStack] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [redFlagAlert, setRedFlagAlert] = useState(false);
@@ -41,6 +45,11 @@ export default function QuestionsPage() {
     stopListening,
     reset,
   } = useBhashiniVoice(lang);
+
+  // Normalize current question across schemas and formats
+  const normalizedQ = useMemo(() => {
+    return currentQ ? normalizeQuestion(currentQ, lang) : null;
+  }, [currentQ, lang]);
 
   const fetchNextQuestion = async (session: PatientSession) => {
     setLoading(true);
@@ -110,6 +119,30 @@ export default function QuestionsPage() {
   const totalSteps = 13;
   const progress = Math.min(answers.length + 8, totalSteps);
 
+  // Restore previously saved answer when question changes
+  useEffect(() => {
+    if (!currentQ) return;
+    
+    const existing = answers.find(a => a.questionId === currentQ.id);
+    if (existing) {
+      setCurrentAnswer(existing.answer || '');
+      setNormalizedAnswer(existing.normalizedEnglishText || '');
+      setSelectedChoice(existing.answer || '');
+      if (existing.selectedChoices && existing.selectedChoices.length > 0) {
+        setSelectedMultiChoices(existing.selectedChoices);
+      } else if (existing.answer) {
+        setSelectedMultiChoices(existing.answer.split(',').map(s => s.trim()).filter(Boolean));
+      } else {
+        setSelectedMultiChoices([]);
+      }
+    } else {
+      setCurrentAnswer('');
+      setNormalizedAnswer('');
+      setSelectedChoice('');
+      setSelectedMultiChoices([]);
+    }
+  }, [currentQ, answers]);
+
   useEffect(() => {
     if (transcript && !isListening && !isProcessing) {
       setCurrentAnswer(transcript);
@@ -123,36 +156,63 @@ export default function QuestionsPage() {
     }
   }, [currentQ, cancel]);
 
-  const submitAnswer = async (val: string) => {
+  const submitAnswer = async (val: string, englishVal?: string, choicesArray?: string[]) => {
     if (!currentQ || !val.trim()) return;
     
-    const qText = typeof currentQ.text === 'string' 
+    const qText = normalizedQ?.text || (typeof currentQ.text === 'string' 
       ? currentQ.text 
-      : (currentQ.text[lang] || currentQ.text['en']);
+      : (currentQ.text[lang] || currentQ.text['en']));
 
     const currentModule = getSession()?.activeModules?.[0] || 'clarification';
 
-    const newAnswers = [...answers, { 
+    const normalizedEng = englishVal || mapAnswerToNormalizedEnglish(val, normalizedQ?.options) || normalizedAnswer || val;
+
+    const answerEntry: Answer = {
       questionId: currentQ.id, 
       moduleId: currentModule,
       questionText: qText, 
       answer: val,
+      selectedChoices: choicesArray,
       originalTranscript: val,
-      normalizedEnglishText: normalizedAnswer,
+      normalizedEnglishText: normalizedEng,
       transcriptionSource: transcriptionSource,
       timestamp: new Date().toISOString(),
       language: lang
-    }];
+    };
+
+    // Update existing answer by questionId instead of duplicate entries
+    const existingIdx = answers.findIndex(a => a.questionId === currentQ.id);
+    const newAnswers = existingIdx >= 0
+      ? answers.map((a, i) => i === existingIdx ? answerEntry : a)
+      : [...answers, answerEntry];
     
     setAnswers(newAnswers);
+    
+    // Maintain navigation history stack
+    setHistoryStack(prev => {
+      const filtered = prev.filter(q => q.id !== currentQ.id);
+      return [...filtered, currentQ];
+    });
+
     setCurrentAnswer('');
     setNormalizedAnswer('');
+    setSelectedChoice('');
+    setSelectedMultiChoices([]);
     reset();
     
     const session = updateSession({ answers: newAnswers });
     sync();
 
     await fetchNextQuestion(session);
+  };
+
+  const handlePreviousQuestion = () => {
+    if (historyStack.length === 0) return;
+    const prevQ = historyStack[historyStack.length - 1];
+    setHistoryStack(prev => prev.slice(0, -1));
+    setCurrentQ(prevQ);
+    setDone(false);
+    setRedFlagAlert(false);
   };
 
   const handleListen = () => {
@@ -165,10 +225,7 @@ export default function QuestionsPage() {
     }
   };
 
-  const renderQText = (q: Question) => {
-    if (typeof q.text === 'string') return t(q.text);
-    return q.text[lang] || q.text['en'];
-  };
+  const questionDisplayText = normalizedQ?.text || '';
 
   return (
     <AyurvedaBackground variant="kiosk">
@@ -192,7 +249,7 @@ export default function QuestionsPage() {
           </div>
         )}
 
-        {!done && !loading && currentQ && (
+        {!done && !loading && currentQ && normalizedQ && (
           <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 mb-6">
             <div className="flex items-center gap-2 mb-2.5 text-xs font-bold text-[#234e32] uppercase tracking-wide">
               <span className="w-2.5 h-2.5 rounded-full bg-[#234e32] animate-pulse-soft" /> {t('AI Question')}
@@ -201,7 +258,7 @@ export default function QuestionsPage() {
             <div className="flex items-start gap-4 mb-6">
               <div className="flex-1">
                 <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#1b3d27] leading-snug">
-                  {renderQText(currentQ)}
+                  {questionDisplayText}
                 </h3>
                 
                 {(isListening || isProcessing || speechError) && (
@@ -231,7 +288,7 @@ export default function QuestionsPage() {
               <div className="flex gap-2 flex-shrink-0 mt-1">
                 {supported && (
                   <button 
-                    onClick={() => isSpeaking ? cancel() : speak(renderQText(currentQ))}
+                    onClick={() => isSpeaking ? cancel() : speak(questionDisplayText)}
                     className={`p-2.5 rounded-full transition-colors flex-shrink-0 ${
                       isSpeaking ? 'bg-[#234e32] text-white shadow-md' : 'bg-[#e4ede1] text-[#234e32] hover:bg-[#d5e3d0]'
                     }`}
@@ -295,14 +352,221 @@ export default function QuestionsPage() {
               </div>
             </details>
 
-            {/* Input Options / Free Text */}
-            {currentQ.type === 'free_text' || currentQ.type === 'duration' || currentQ.type === 'number' || currentQ.type === 'text' || (!currentQ.options && !currentQ.choices && !currentQ.type?.includes('yes_no')) ? (
+            {/* Input Component By Normalized Question Type */}
+            {normalizedQ.type === 'yes_no' ? (
+              /* Yes/No with Haan, Nahin, Pakka Nahin */
+              <div className="mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {normalizedQ.options.map((opt) => {
+                    const isSelected = selectedChoice.toLowerCase() === opt.value.toLowerCase() ||
+                      selectedChoice.toLowerCase() === opt.label.toLowerCase();
+                    return (
+                      <button
+                        key={opt.id || opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedChoice(opt.value);
+                          submitAnswer(opt.value, opt.normalizedEnglishText);
+                        }}
+                        className={`rounded-2xl border-2 p-5 font-bold text-base transition flex items-center justify-between shadow-xs touch-manipulation cursor-pointer select-none ${
+                          isSelected
+                            ? 'border-[#234e32] bg-[#234e32] text-white shadow-md ring-2 ring-[#234e32]/30'
+                            : 'border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-[#1c241e]'
+                        }`}
+                      >
+                        <span className="leading-snug pointer-events-none select-none">{t(opt.label)}</span>
+                        {isSelected ? (
+                          <div className="w-6 h-6 rounded-full bg-white text-[#234e32] flex items-center justify-center shrink-0 ml-2 pointer-events-none">
+                            <Check size={16} strokeWidth={3} />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full border border-[#ded5c2] shrink-0 ml-2 pointer-events-none" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : normalizedQ.type === 'single' && normalizedQ.options.length > 0 ? (
+              /* Single Choice with Predefined Options */
+              <div className="mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {normalizedQ.options.map((opt) => {
+                    const isSelected = selectedChoice.toLowerCase() === opt.value.toLowerCase() ||
+                      selectedChoice.toLowerCase() === opt.label.toLowerCase();
+                    return (
+                      <button
+                        key={opt.id || opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedChoice(opt.value);
+                          submitAnswer(opt.value, opt.normalizedEnglishText);
+                        }}
+                        className={`rounded-2xl border-2 p-4 font-bold text-sm text-left transition flex items-center justify-between shadow-xs touch-manipulation cursor-pointer select-none ${
+                          isSelected
+                            ? 'border-[#234e32] bg-[#234e32] text-white shadow-md ring-2 ring-[#234e32]/30'
+                            : 'border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-[#1c241e]'
+                        }`}
+                      >
+                        <span className="leading-snug pointer-events-none select-none">{t(opt.label)}</span>
+                        {isSelected ? (
+                          <div className="w-5 h-5 rounded-full bg-white text-[#234e32] flex items-center justify-center shrink-0 ml-2 pointer-events-none">
+                            <Check size={14} strokeWidth={3} />
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border border-[#ded5c2] shrink-0 ml-2 pointer-events-none" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : normalizedQ.type === 'multi_choice' && normalizedQ.options.length > 0 ? (
+              /* Multiple Choice with Predefined Options */
+              <div className="space-y-4 mb-6">
+                <div className="text-xs font-bold text-[#6b7c6e] uppercase tracking-wider">
+                  {t('Select all that apply')}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {normalizedQ.options.map((opt) => {
+                    const isSelected = selectedMultiChoices.some(
+                      c => c.toLowerCase() === opt.value.toLowerCase() || c.toLowerCase() === opt.label.toLowerCase()
+                    );
+                    return (
+                      <button
+                        key={opt.id || opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMultiChoices(prev => 
+                            isSelected 
+                              ? prev.filter(c => c.toLowerCase() !== opt.value.toLowerCase() && c.toLowerCase() !== opt.label.toLowerCase())
+                              : [...prev, opt.value]
+                          );
+                        }}
+                        className={`rounded-2xl border-2 p-4 font-bold text-sm text-left transition flex items-center justify-between shadow-xs touch-manipulation cursor-pointer select-none ${
+                          isSelected
+                            ? 'border-[#234e32] bg-[#234e32] text-white shadow-md ring-2 ring-[#234e32]/30'
+                            : 'border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-[#1c241e]'
+                        }`}
+                      >
+                        <span className="leading-snug pointer-events-none select-none">{t(opt.label)}</span>
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ml-2 border pointer-events-none ${
+                          isSelected ? 'bg-white text-[#234e32] border-white' : 'border-[#ded5c2] bg-white'
+                        }`}>
+                          {isSelected && <Check size={14} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    disabled={selectedMultiChoices.length === 0}
+                    onClick={() => {
+                      const joinedValue = selectedMultiChoices.join(', ');
+                      submitAnswer(joinedValue, joinedValue, selectedMultiChoices);
+                    }}
+                    className={`rounded-2xl px-7 py-3.5 font-bold text-sm transition shadow-sm touch-manipulation select-none ${
+                      selectedMultiChoices.length > 0
+                        ? 'bg-[#234e32] text-white hover:bg-[#1a3b26] shadow-[#234e32]/20 cursor-pointer'
+                        : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
+                    }`}
+                  >
+                    {t('Confirm Selection')} {selectedMultiChoices.length > 0 ? `(${selectedMultiChoices.length})` : ''}
+                  </button>
+                </div>
+              </div>
+            ) : normalizedQ.type === 'scale' ? (
+              /* Scale 0 to 10 */
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between text-xs font-bold text-[#6b7c6e]">
+                  <span>0 - {t('None')}</span>
+                  <span>5 - {t('Moderate')}</span>
+                  <span>10 - {t('Severe')}</span>
+                </div>
+                <div className="grid grid-cols-6 sm:grid-cols-11 gap-2">
+                  {normalizedQ.options.map((opt) => {
+                    const isSelected = selectedChoice === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedChoice(opt.value);
+                          submitAnswer(opt.value, opt.normalizedEnglishText);
+                        }}
+                        className={`h-14 rounded-xl border-2 font-bold text-base transition flex items-center justify-center touch-manipulation cursor-pointer select-none ${
+                          isSelected
+                            ? 'border-[#234e32] bg-[#234e32] text-white shadow-lg ring-2 ring-[#234e32]/30 scale-105'
+                            : 'border-[#ded5c2] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-[#1c241e]'
+                        }`}
+                      >
+                        <span className="pointer-events-none select-none">{opt.value}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : normalizedQ.type === 'number' ? (
+              /* Numeric Input */
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = Math.max(0, (parseFloat(currentAnswer) || 0) - 1);
+                      setCurrentAnswer(String(val));
+                    }}
+                    className="w-14 h-14 rounded-2xl border-2 border-[#ded5c2] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-2xl font-bold text-[#1c241e] flex items-center justify-center touch-manipulation cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    value={currentAnswer}
+                    onChange={(e) => setCurrentAnswer(e.target.value)}
+                    placeholder="0"
+                    className="flex-1 h-14 text-center rounded-2xl border-2 border-[#ded5c2] focus:border-[#234e32] bg-white text-2xl font-bold text-[#1c241e] focus:outline-none focus:ring-2 focus:ring-[#234e32]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (currentAnswer.trim()) submitAnswer(currentAnswer.trim());
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = (parseFloat(currentAnswer) || 0) + 1;
+                      setCurrentAnswer(String(val));
+                    }}
+                    className="w-14 h-14 rounded-2xl border-2 border-[#ded5c2] bg-[#f8f5ee] hover:bg-[#e8f1e6] text-2xl font-bold text-[#1c241e] flex items-center justify-center touch-manipulation cursor-pointer select-none"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!currentAnswer.trim()}
+                    onClick={() => submitAnswer(currentAnswer.trim())}
+                    className={`h-14 px-7 rounded-2xl font-bold text-sm transition shadow-sm touch-manipulation select-none ${
+                      currentAnswer.trim()
+                        ? 'bg-[#234e32] text-white hover:bg-[#1a3b26] shadow-[#234e32]/20 cursor-pointer'
+                        : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
+                    }`}
+                  >
+                    {t('Next')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Open-ended Text / Duration / Fallback Free-text */
               <div className="flex flex-col gap-3 mb-6">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <textarea 
-                    className="w-full rounded-2xl bg-white border border-[#ded5c2] p-5 focus:outline-none focus:ring-2 focus:ring-[#234e32] resize-none transition"
+                    className="w-full rounded-2xl bg-white border border-[#ded5c2] p-5 focus:outline-none focus:ring-2 focus:ring-[#234e32] resize-none transition text-base text-[#1c241e]"
                     rows={4}
-                    placeholder={t("e.g. It started a few days ago...")}
+                    placeholder={currentQ.example ? t(currentQ.example) : t("e.g. It started a few days ago...")}
                     value={currentAnswer}
                     onChange={(e) => {
                       setCurrentAnswer(e.target.value);
@@ -311,15 +575,16 @@ export default function QuestionsPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        submitAnswer(currentAnswer);
+                        if (currentAnswer.trim()) submitAnswer(currentAnswer.trim());
                       }
                     }}
-                  ></textarea>
+                  />
                   <button 
-                    onClick={() => submitAnswer(currentAnswer)}
+                    type="button"
+                    onClick={() => submitAnswer(currentAnswer.trim())}
                     disabled={!currentAnswer.trim()}
                     className={`w-full sm:w-auto rounded-2xl px-7 py-3.5 font-bold text-sm transition shadow-sm ${
-                      currentAnswer.trim() ? 'bg-[#234e32] text-white hover:bg-[#1a3b26] shadow-[#234e32]/20' : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
+                      currentAnswer.trim() ? 'bg-[#234e32] text-white hover:bg-[#1a3b26] shadow-[#234e32]/20 cursor-pointer' : 'bg-[#ded5c2] text-[#8c7e6c] cursor-not-allowed'
                     }`}
                   >
                     {t('Next')}
@@ -327,32 +592,36 @@ export default function QuestionsPage() {
                 </div>
                 <p className="text-xs text-[#6b7c6e]">{t('Press Enter or click Next to submit')}</p>
               </div>
-            ) : (
-              <div className="flex flex-col mb-6">
-                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
-                  {(currentQ.options || currentQ.choices || ['Yes', 'No', 'Not sure']).map((choice) => (
-                    <button 
-                      key={choice} 
-                      onClick={() => submitAnswer(choice)} 
-                      className="rounded-2xl border-2 border-[#ded5c2] hover:border-[#234e32] bg-[#f8f5ee] text-[#1c241e] font-bold px-6 py-3.5 text-sm transition focus:outline-none focus:ring-3 focus:ring-[#234e32]/25 hover:bg-[#e8f1e6]"
-                    >
-                      {t(choice)}
-                    </button>
-                  ))}
-                </div>
+            )}
 
-                {(currentAnswer && !isListening && !isProcessing) && (
-                  <div className="mt-4 flex flex-col sm:flex-row gap-3 items-center bg-[#f8f5ee] p-4 rounded-2xl border border-[#ded5c2]">
-                    <div className="flex-1 w-full text-center sm:text-left">
-                      <p className="text-xs font-semibold text-[#667768] uppercase tracking-wider mb-1">{t('We heard:')}</p>
-                      <p className="font-bold text-[#1c241e]">"{currentAnswer}"</p>
-                    </div>
-                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                      <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-white border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Clear')}</button>
-                      <button onClick={() => submitAnswer(currentAnswer)} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
-                    </div>
-                  </div>
-                )}
+            {/* Voice Confirmation Banner */}
+            {(currentAnswer && !isListening && !isProcessing && (normalizedQ.type === 'free_text' || normalizedQ.type === 'duration')) && (
+              <div className="mt-4 flex flex-col sm:flex-row gap-3 items-center bg-[#f8f5ee] p-4 rounded-2xl border border-[#ded5c2]">
+                <div className="flex-1 w-full text-center sm:text-left">
+                  <p className="text-xs font-semibold text-[#667768] uppercase tracking-wider mb-1">{t('We heard:')}</p>
+                  <p className="font-bold text-[#1c241e]">"{currentAnswer}"</p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                  <button onClick={() => { reset(); setCurrentAnswer(''); }} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-white border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 transition"><RotateCcw size={16} /> {t('Clear')}</button>
+                  <button onClick={() => submitAnswer(currentAnswer)} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-4 py-2.5 transition"><Check size={16} /> {t('Confirm')}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Previous Question Navigation */}
+            {historyStack.length > 0 && (
+              <div className="flex items-center justify-between pt-5 border-t border-[#ded5c2]">
+                <button
+                  type="button"
+                  onClick={handlePreviousQuestion}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#f8f5ee] border border-[#ded5c2] hover:bg-[#ede5d6] text-[#4d2f19] font-bold px-4 py-2.5 text-xs transition cursor-pointer"
+                >
+                  <ArrowLeft size={14} />
+                  {t('Previous Question')}
+                </button>
+                <div className="text-xs font-medium text-[#6b7c6e]">
+                  {answers.length} {t('answered')}
+                </div>
               </div>
             )}
           </div>

@@ -120,7 +120,15 @@
             "mr": "खोकला, घसा दुखणे, उलटी, जुलाब किंवा लघवीत जळजळ आहे का?"
           },
           "type": "multi_choice",
-          "next": "FEV_007"
+          "next": "FEV_007",
+          "options": [
+            "Cough",
+            "Sore throat",
+            "Vomiting",
+            "Diarrhea",
+            "Burning while urinating",
+            "None of these"
+          ]
         },
         {
           "id": "FEV_007",
@@ -180,7 +188,11 @@
             "mr": "खोकला कोरडा आहे का कफासह आहे?"
           },
           "type": "single",
-          "next": "COU_003"
+          "next": "COU_003",
+          "options": [
+            "Dry cough",
+            "With phlegm"
+          ]
         },
         {
           "id": "COU_003",
@@ -190,7 +202,14 @@
             "mr": "कफ असल्यास त्याचा रंग काय आहे?"
           },
           "type": "single",
-          "next": "COU_004"
+          "next": "COU_004",
+          "options": [
+            "Clear / White",
+            "Yellow / Green",
+            "Brown / Rust",
+            "Blood-tinged",
+            "No phlegm"
+          ]
         },
         {
           "id": "COU_004",
@@ -200,7 +219,14 @@
             "mr": "ताप, घसा दुखणे, घरघर किंवा धाप लागणे आहे का?"
           },
           "type": "multi_choice",
-          "next": "COU_005"
+          "next": "COU_005",
+          "options": [
+            "Fever",
+            "Sore throat",
+            "Wheezing",
+            "Breathlessness",
+            "None of these"
+          ]
         },
         {
           "id": "COU_005",
@@ -290,7 +316,11 @@
             "mr": "अचानक की हळूहळू सुरू झाली?"
           },
           "type": "single",
-          "next": "ABD_004"
+          "next": "ABD_004",
+          "options": [
+            "Suddenly",
+            "Gradually"
+          ]
         },
         {
           "id": "ABD_004",
@@ -330,7 +360,12 @@
             "mr": "जुलाब किंवा बद्धकोष्ठता?"
           },
           "type": "single",
-          "next": "ABD_008"
+          "next": "ABD_008",
+          "options": [
+            "Diarrhea",
+            "Constipation",
+            "Neither / Normal"
+          ]
         },
         {
           "id": "ABD_008",
@@ -410,7 +445,13 @@
             "mr": "दाब, घट्टपणा, टोचणे किंवा जळजळ?"
           },
           "type": "multi_choice",
-          "next": "CHE_004"
+          "next": "CHE_004",
+          "options": [
+            "Pressure",
+            "Tightness",
+            "Sharp",
+            "Burning"
+          ]
         },
         {
           "id": "CHE_004",
@@ -450,7 +491,14 @@
             "mr": "घाम, मळमळ/उलटी, चक्कर किंवा बेशुद्धी?"
           },
           "type": "multi_choice",
-          "next": "CHE_008"
+          "next": "CHE_008",
+          "options": [
+            "Sweating",
+            "Nausea / Vomiting",
+            "Dizziness",
+            "Fainting",
+            "None of these"
+          ]
         },
         {
           "id": "CHE_008",
@@ -460,7 +508,15 @@
             "mr": "हृदयरोग, मधुमेह, BP, कोलेस्ट्रॉल किंवा तंबाखूचा इतिहास?"
           },
           "type": "multi_choice",
-          "next": "CHE_009"
+          "next": "CHE_009",
+          "options": [
+            "Heart disease",
+            "Diabetes",
+            "High BP",
+            "High cholesterol",
+            "Tobacco use",
+            "None of these"
+          ]
         },
         {
           "id": "CHE_009",
@@ -540,7 +596,15 @@
             "mr": "मळमळ, उलटी, प्रकाश/आवाज त्रास, ताप किंवा मान आखडणे?"
           },
           "type": "multi_choice",
-          "next": "HED_007"
+          "next": "HED_007",
+          "options": [
+            "Nausea / Vomiting",
+            "Light sensitivity",
+            "Sound sensitivity",
+            "Fever",
+            "Neck stiffness",
+            "None of these"
+          ]
         },
         {
           "id": "HED_007",
@@ -550,7 +614,15 @@
             "mr": "अशक्तपणा, बधिरपणा, बोलण्यात अडचण, गोंधळ किंवा नवीन दृष्टी समस्या?"
           },
           "type": "multi_choice",
-          "next": "HED_008"
+          "next": "HED_008",
+          "options": [
+            "Weakness",
+            "Numbness",
+            "Speech difficulty",
+            "Confusion",
+            "New vision problem",
+            "None of these"
+          ]
         },
         {
           "id": "HED_008",
@@ -560,7 +632,15 @@
             "mr": "झोपेची कमतरता, उपवास, ताण, उष्णता किंवा अन्नाशी संबंध आहे का?"
           },
           "type": "multi_choice",
-          "next": "HED_009"
+          "next": "HED_009",
+          "options": [
+            "Sleep loss",
+            "Fasting",
+            "Stress",
+            "Heat",
+            "Particular food",
+            "None of these"
+          ]
         },
         {
           "id": "HED_009",
@@ -590,7 +670,12 @@
             "mr": "उलटी, जुलाब किंवा दोन्ही?"
           },
           "type": "single",
-          "next": "GI_002"
+          "next": "GI_002",
+          "options": [
+            "Vomiting",
+            "Diarrhea",
+            "Both"
+          ]
         },
         {
           "id": "GI_002",
@@ -700,7 +785,11 @@
             "mr": "विश्रांतीत की हालचालीने?"
           },
           "type": "single",
-          "next": "BRE_003"
+          "next": "BRE_003",
+          "options": [
+            "At rest",
+            "With activity"
+          ]
         },
         {
           "id": "BRE_003",
@@ -730,7 +819,13 @@
             "mr": "खोकला, घरघर किंवा ताप?"
           },
           "type": "multi_choice",
-          "next": "BRE_006"
+          "next": "BRE_006",
+          "options": [
+            "Cough",
+            "Wheezing",
+            "Fever",
+            "None of these"
+          ]
         },
         {
           "id": "BRE_006",
@@ -750,7 +845,14 @@
             "mr": "व्यायाम, अॅलर्जन, नवीन औषध किंवा काही अडकल्यानंतर?"
           },
           "type": "multi_choice",
-          "next": "BRE_008"
+          "next": "BRE_008",
+          "options": [
+            "Exercise",
+            "Allergen",
+            "New medicine",
+            "Choking",
+            "None of these"
+          ]
         },
         {
           "id": "BRE_008",
@@ -800,7 +902,11 @@
             "mr": "सतत की येतो-जातो?"
           },
           "type": "single",
-          "next": "WEA_003"
+          "next": "WEA_003",
+          "options": [
+            "Constant",
+            "Comes and goes"
+          ]
         },
         {
           "id": "WEA_003",
@@ -820,7 +926,13 @@
             "mr": "ताप, कारण नसताना वजन कमी होणे किंवा रात्री घाम?"
           },
           "type": "multi_choice",
-          "next": "WEA_005"
+          "next": "WEA_005",
+          "options": [
+            "Fever",
+            "Unexplained weight loss",
+            "Night sweats",
+            "None of these"
+          ]
         },
         {
           "id": "WEA_005",
@@ -830,7 +942,14 @@
             "mr": "धाप, छातीत वेदना, धडधड किंवा चक्कर?"
           },
           "type": "multi_choice",
-          "next": "WEA_006"
+          "next": "WEA_006",
+          "options": [
+            "Breathlessness",
+            "Chest pain",
+            "Palpitations",
+            "Dizziness",
+            "None of these"
+          ]
         },
         {
           "id": "WEA_006",
@@ -840,7 +959,14 @@
             "mr": "एका बाजूचा अशक्तपणा किंवा बोलणे/चालणे/दृष्टीची नवीन समस्या?"
           },
           "type": "multi_choice",
-          "next": "WEA_007"
+          "next": "WEA_007",
+          "options": [
+            "One-sided weakness",
+            "Speech problem",
+            "Walking problem",
+            "Vision problem",
+            "None of these"
+          ]
         },
         {
           "id": "WEA_007",
@@ -850,7 +976,13 @@
             "mr": "झोप, भूक किंवा आहारात मोठा बदल?"
           },
           "type": "multi_choice",
-          "next": "WEA_008"
+          "next": "WEA_008",
+          "options": [
+            "Sleep change",
+            "Appetite change",
+            "Food intake change",
+            "None of these"
+          ]
         },
         {
           "id": "WEA_008",
@@ -860,7 +992,15 @@
             "mr": "अॅनिमिया, थायरॉइड, मधुमेह, हृदय/फुफ्फुसांचा आजार किंवा इतर दीर्घकालीन आजार?"
           },
           "type": "multi_choice",
-          "next": "WEA_009"
+          "next": "WEA_009",
+          "options": [
+            "Anemia",
+            "Thyroid disease",
+            "Diabetes",
+            "Heart / Lung disease",
+            "Other chronic illness",
+            "None of these"
+          ]
         },
         {
           "id": "WEA_009",
@@ -920,7 +1060,15 @@
             "mr": "वजन उचलणे, वाकणे, व्यायाम, प्रवास किंवा दुखापतीनंतर?"
           },
           "type": "multi_choice",
-          "next": "BAK_004"
+          "next": "BAK_004",
+          "options": [
+            "Lifting",
+            "Bending",
+            "Exercise",
+            "Travel",
+            "Injury",
+            "None of these"
+          ]
         },
         {
           "id": "BAK_004",
@@ -940,7 +1088,14 @@
             "mr": "बधिरपणा, मुंग्या, अशक्तपणा किंवा चालताना त्रास?"
           },
           "type": "multi_choice",
-          "next": "BAK_006"
+          "next": "BAK_006",
+          "options": [
+            "Numbness",
+            "Tingling",
+            "Weakness",
+            "Difficulty walking",
+            "None of these"
+          ]
         },
         {
           "id": "BAK_006",
@@ -960,7 +1115,13 @@
             "mr": "ताप, कारण नसताना वजन कमी होणे किंवा खूप अस्वस्थ वाटणे?"
           },
           "type": "multi_choice",
-          "next": "BAK_008"
+          "next": "BAK_008",
+          "options": [
+            "Fever",
+            "Unexplained weight loss",
+            "Feeling very unwell",
+            "None of these"
+          ]
         },
         {
           "id": "BAK_008",
@@ -1020,7 +1181,17 @@
             "mr": "कोणते सांधे? एक बाजू की दोन्ही?"
           },
           "type": "multi_choice",
-          "next": "JNT_003"
+          "next": "JNT_003",
+          "options": [
+            "Knees",
+            "Shoulders",
+            "Hips",
+            "Hands / Wrists",
+            "Feet / Ankles",
+            "Spine / Back",
+            "One side",
+            "Both sides"
+          ]
         },
         {
           "id": "JNT_003",
@@ -1030,7 +1201,11 @@
             "mr": "हालचालीनंतर किंवा बराच वेळ विश्रांतीनंतर जास्त?"
           },
           "type": "single",
-          "next": "JNT_004"
+          "next": "JNT_004",
+          "options": [
+            "Worse after activity",
+            "Worse after prolonged rest"
+          ]
         },
         {
           "id": "JNT_004",
@@ -1050,7 +1225,14 @@
             "mr": "सूज, उष्णता, लालसरपणा किंवा हालचाल कमी?"
           },
           "type": "multi_choice",
-          "next": "JNT_006"
+          "next": "JNT_006",
+          "options": [
+            "Swelling",
+            "Warmth",
+            "Redness",
+            "Reduced movement",
+            "None of these"
+          ]
         },
         {
           "id": "JNT_006",
@@ -1060,7 +1242,15 @@
             "mr": "ताप, वजन कमी, पुरळ, डोळ्यांची लक्षणे किंवा जास्त थकवा?"
           },
           "type": "multi_choice",
-          "next": "JNT_007"
+          "next": "JNT_007",
+          "options": [
+            "Fever",
+            "Weight loss",
+            "Rash",
+            "Eye symptoms",
+            "Marked fatigue",
+            "None of these"
+          ]
         },
         {
           "id": "JNT_007",
