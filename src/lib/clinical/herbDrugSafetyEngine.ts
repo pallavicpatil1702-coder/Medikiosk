@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk';
 import type { PatientSession, MedicationSafetyAlert } from '../types';
+import { generateUUID } from '../uuid';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || 'missing',
@@ -147,7 +148,7 @@ export async function generateMedicationSafetyAlerts(session: PatientSession): P
 
       if (rule) {
         alerts.push({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           itemA: `${drug.originalName} (${drug.normalizedName})`,
           itemB: `${herb.originalName} (${herb.normalizedName})`,
           interactionType: rule.interactionType,
@@ -168,7 +169,7 @@ export async function generateMedicationSafetyAlerts(session: PatientSession): P
     const generic = drug.normalizedName.toLowerCase();
     if (seenGenerics.has(generic) && seenGenerics.get(generic)?.toLowerCase() !== drug.originalName.toLowerCase()) {
       alerts.push({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         itemA: seenGenerics.get(generic)!,
         itemB: drug.originalName,
         interactionType: 'duplicate',

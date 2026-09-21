@@ -296,7 +296,7 @@ export default function QuestionsPage() {
             </details>
 
             {/* Input Options / Free Text */}
-            {currentQ.type === 'free_text' || currentQ.type === 'duration' || currentQ.type === 'number' || currentQ.type === 'text' || (!currentQ.options && !currentQ.choices && !currentQ.type.includes('yes_no')) ? (
+            {currentQ.type === 'free_text' || currentQ.type === 'duration' || currentQ.type === 'number' || currentQ.type === 'text' || (!currentQ.options && !currentQ.choices && !currentQ.type?.includes('yes_no')) ? (
               <div className="flex flex-col gap-3 mb-6">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <textarea 

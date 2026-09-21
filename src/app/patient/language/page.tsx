@@ -5,7 +5,7 @@ import ProgressBar from '@/components/ProgressBar';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
 import { Globe, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { saveToStore, loadFromStore, STORAGE_KEYS, updateSession } from '@/lib/store/store';
+import { saveToStore, loadFromStore, STORAGE_KEYS, updateSession, clearSession } from '@/lib/store/store';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
@@ -31,74 +31,12 @@ export default function LanguagePage() {
   useEffect(() => {
     const saved = loadFromStore<string>(STORAGE_KEYS.language);
     if (saved) setSelected(saved);
-
-    // ==========================================
-    // URGENT RUNTIME DEBUG - TEMPORARY TEST
-    // ==========================================
-    const runDiagnostics = async () => {
-      console.log('--- START FIREBASE DIAGNOSTICS ---');
-      try {
-        const { default: app, auth, db, storage } = await import('@/lib/firebase');
-        const { signInAnonymously } = await import('firebase/auth');
-        const { collection, addDoc, serverTimestamp, getDoc } = await import('firebase/firestore');
-
-        // 1. Verify Config
-        console.log('[Firebase Config] projectId:', app.options.projectId);
-        console.log('[Firebase Config] authInitialized:', !!auth);
-        console.log('[Firebase Config] firestoreInitialized:', !!db);
-        console.log('[Firebase Config] storageInitialized:', !!storage);
-
-        // 6. Check Emulator
-        // If EMULATOR_HOST is set, it might be using it, but we can check if it's explicitly configured.
-        console.log('[Firebase Emulator] Using emulator?', process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === 'true' || false);
-
-        // 2. Verify Anonymous Auth
-        console.log(`[Firebase Auth] before = ${auth.currentUser ? 'present (' + auth.currentUser.uid + ')' : 'absent'}`);
-        if (!auth.currentUser) {
-          try {
-            console.log('[Firebase Auth] anonymous auth started');
-            const cred = await signInAnonymously(auth);
-            console.log(`[Firebase Auth] anonymous auth success = true`);
-            console.log(`[Firebase Auth] uid present = ${cred.user.uid}`);
-          } catch (err: any) {
-            console.error('[Firebase Auth] anonymous auth success = false');
-            console.error('[Firebase Auth] error:', err.code, err.message);
-            return; // Stop if auth fails
-          }
-        }
-
-        // 3. Verify Firestore Write Directly
-        console.log('[Firestore Test] write started');
-        try {
-          const testRef = await addDoc(collection(db, 'debug_firebase_test'), {
-            type: "mediKiosk-debug",
-            createdAt: serverTimestamp()
-          });
-          console.log('[Firestore Test] write succeeded. ID:', testRef.id);
-          
-          const readSnap = await getDoc(testRef);
-          console.log('[Firestore Test] read succeeded:', readSnap.exists());
-        } catch (err: any) {
-          console.error('[Firestore Test] write failed!');
-          console.error('[Firestore Test] error:', err.code, err.message);
-        }
-
-      } catch (err: any) {
-        console.error('Diagnostic error:', err);
-      }
-      console.log('--- END FIREBASE DIAGNOSTICS ---');
-    };
-
-    if (process.env.NODE_ENV === 'development') {
-      runDiagnostics();
-    }
   }, []);
 
   const handleContinue = () => {
     saveToStore(STORAGE_KEYS.language, selected);
     
-    // URGENT FIX: Isolate session state on new consultation
-    const { clearSession } = require('@/lib/store/store');
+    // Isolate session state on new consultation using static import
     clearSession();
     
     // Re-initialize with completely fresh state
@@ -133,25 +71,26 @@ export default function LanguagePage() {
           {languages.map((l) => (
             <button
               key={l.code}
+              type="button"
               onClick={() => {
                 setSelected(l.code);
                 saveToStore(STORAGE_KEYS.language, l.code);
                 window.dispatchEvent(new Event('language-changed'));
               }}
-              className={`relative rounded-3xl border-2 p-6 text-left transition shadow-xs hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#234e32]/20 ${
+              className={`relative rounded-3xl border-2 p-6 text-left transition shadow-xs hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#234e32]/20 cursor-pointer touch-manipulation select-none ${
                 selected === l.code 
                   ? 'border-[#234e32] bg-[#fbf9f4] shadow-md ring-2 ring-[#234e32]/20' 
                   : 'border-[#ded5c2] bg-[#fbf9f4]/80 hover:border-[#829277]'
               }`}
               aria-pressed={selected === l.code}
             >
-              <div className="mb-3 h-7 flex items-center">
-                <img src={`https://flagcdn.com/${l.flagCode}.svg`} className="h-full rounded-sm shadow-xs object-contain" alt={`${l.name} flag`} />
+              <div className="mb-3 h-7 flex items-center pointer-events-none select-none">
+                <img src={`https://flagcdn.com/${l.flagCode}.svg`} className="h-full rounded-sm shadow-xs object-contain pointer-events-none select-none" alt={`${l.name} flag`} />
               </div>
-              <div className="text-xl font-bold text-[#1c241e]">{l.name}</div>
-              <div className="text-xs font-semibold text-[#6e7d70] mt-0.5">{l.label}</div>
+              <div className="text-xl font-bold text-[#1c241e] pointer-events-none select-none">{l.name}</div>
+              <div className="text-xs font-semibold text-[#6e7d70] mt-0.5 pointer-events-none select-none">{l.label}</div>
               {selected === l.code && (
-                <div className="absolute top-4 right-4 w-7 h-7 rounded-full bg-[#234e32] text-white flex items-center justify-center shadow-sm">
+                <div className="absolute top-4 right-4 w-7 h-7 rounded-full bg-[#234e32] text-white flex items-center justify-center shadow-sm pointer-events-none">
                   <Check size={14} strokeWidth={3} />
                 </div>
               )}
@@ -160,8 +99,9 @@ export default function LanguagePage() {
         </div>
         <div className="flex justify-end">
           <button 
+            type="button"
             onClick={handleContinue} 
-            className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition"
+            className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-8 py-4 text-base shadow-lg shadow-[#234e32]/25 transition cursor-pointer touch-manipulation select-none"
           >
             {t('Continue')} <span aria-hidden>→</span>
           </button>

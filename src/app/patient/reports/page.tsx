@@ -13,6 +13,7 @@ import { useSync } from '@/hooks/useSync';
 
 import { useAuth } from '@/context/AuthContext';
 import { uploadMedicalReport, deleteMedicalReport } from '@/lib/storage';
+import { generateUUID } from '@/lib/uuid';
 
 export default function ReportsPage() {
   const [uploaded, setUploaded] = useState<MedicalDocument[]>([]);
@@ -61,7 +62,7 @@ export default function ReportsPage() {
 
     try {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2) + 'MB';
-      const docId = crypto.randomUUID();
+      const docId = generateUUID();
       
       const newDoc: MedicalDocument = {
         id: docId,

@@ -11,6 +11,7 @@ import type { PatientSession, ClinicalSummary, AyurvedaReference } from '@/lib/t
 import { buildHistory } from '@/lib/clinicalHistory';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
+import { generateUUID } from '@/lib/uuid';
 
 export default function SummaryPage() {
   const [session, setSessionState] = useState<PatientSession | null>(null);
@@ -41,7 +42,7 @@ export default function SummaryPage() {
       setAyurvedaReferences(s.ayurvedaReferences);
     }
 
-    if (s && !s.medicationSafetyAlerts) {
+    if (s && !s.medicationSafetyAlerts && s.firestoreSessionId) {
       setIsGeneratingSafety(true);
       fetch('/api/ai/generateMedicationSafety', {
         method: 'POST',
@@ -63,7 +64,7 @@ export default function SummaryPage() {
 
     const history = session.clinicalHistory || buildHistory(session.chiefComplaint, session.answers);
     const summary: ClinicalSummary = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       patientId: session.patient.id,
       generatedAt: new Date().toISOString(),
       patient: session.patient,

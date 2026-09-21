@@ -10,6 +10,7 @@ import { updateSession } from '@/lib/store/store';
 import { Patient } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
+import { generateUUID } from '@/lib/uuid';
 
 export default function IdentifyPage() {
   const [mode, setMode] = useState<'scan' | 'enter' | 'new'>('new');
@@ -25,7 +26,7 @@ export default function IdentifyPage() {
     setError('');
     try {
       const p: Patient = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         abhaId: abhaId?.trim() || undefined,
         name: '',
         age: 0,

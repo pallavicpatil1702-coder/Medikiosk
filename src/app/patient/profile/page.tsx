@@ -13,6 +13,7 @@ import { useSync } from '@/hooks/useSync';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { generateUUID } from '@/lib/uuid';
 
 export default function ProfilePage() {
   const [name, setName] = useState('');
@@ -79,7 +80,7 @@ export default function ProfilePage() {
     const session = getSession();
     const updatedPatient: Patient = {
       ...session.patient,
-      id: session.patient?.id || crypto.randomUUID(),
+      id: session.patient?.id || generateUUID(),
       name,
       age: parseInt(age, 10) || 0,
       gender,

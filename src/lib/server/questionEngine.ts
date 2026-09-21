@@ -312,7 +312,7 @@ Output ONLY a JSON object:
   try {
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'openai/gpt-oss-120b',
+      model: 'llama-3.1-8b-instant',
       temperature: 0.1,
       response_format: { type: 'json_object' },
     });

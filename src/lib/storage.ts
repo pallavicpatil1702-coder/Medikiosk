@@ -1,5 +1,6 @@
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { generateUUID } from './uuid';
 
 /**
  * Uploads a medical report to Firebase Storage.
@@ -14,7 +15,7 @@ export async function uploadMedicalReport(patientId: string, sessionId: string, 
   }
 
   // Generate a unique path: patients/{patientId}/reports/{sessionId}/{uuid}_{filename}
-  const uuid = crypto.randomUUID();
+  const uuid = generateUUID();
   // Sanitize filename to avoid weird characters in path
   const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
   const storagePath = `patients/${patientId}/reports/${sessionId}/${uuid}_${safeFileName}`;
