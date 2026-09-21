@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `You are a strict data structuring assistant. Your task is to extract structured clinical data from the provided medical report OCR text.
 STRICT EXTRACTION RULES:
 - Extract ONLY information visibly present in the report/OCR text.
+- Provide a concise 1-2 sentence clinical summary of the key findings in "summary".
 - Never invent missing values.
 - Never infer a medical condition.
 - Never diagnose.
@@ -99,6 +100,7 @@ STRICT EXTRACTION RULES:
 Output JSON exactly matching this structure:
 {
   "reportDate": "DD MMM YYYY" | null,
+  "summary": "1-2 sentence factual summary of key findings" | null,
   "tests": [
     {
       "name": "Test Name",
@@ -112,50 +114,87 @@ Output JSON exactly matching this structure:
   "confidence": "high" | "medium" | "low"
 }`;
 
-    console.log('[API/extract] Starting Groq request...');
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Extract the following OCR text:\n\n${extractedText}` }
-      ],
-      model: 'groq/compound',
-      response_format: { type: 'json_object' },
-      temperature: 0,
-    });
+    let aiResult: any = null;
 
-    console.log('[API/extract] Groq request completed. Status/Finish Reason:', completion.choices[0]?.finish_reason);
+    try {
+      console.log('[API/extract] Starting Groq request...');
+      const completion = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Extract the following OCR text:\n\n${extractedText}` }
+        ],
+        model: 'groq/compound',
+        response_format: { type: 'json_object' },
+        temperature: 0,
+      });
 
-    const aiResultStr = completion.choices[0]?.message?.content;
-    if (!aiResultStr) {
-      console.error('[API/extract] Groq returned empty content');
-      throw new Error('Groq returned empty content');
+      console.log('[API/extract] Groq request completed. Status/Finish Reason:', completion.choices[0]?.finish_reason);
+
+      const aiResultStr = completion.choices[0]?.message?.content;
+      if (aiResultStr) {
+        // Safely extract JSON in case the model wraps it in markdown
+        let jsonStr = aiResultStr;
+        const jsonMatch = aiResultStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (jsonMatch && jsonMatch[1]) {
+          jsonStr = jsonMatch[1];
+        } else {
+          const braceIndex = aiResultStr.indexOf('{');
+          if (braceIndex >= 0) {
+            jsonStr = aiResultStr.substring(braceIndex);
+            const lastBraceIndex = jsonStr.lastIndexOf('}');
+            if (lastBraceIndex >= 0) {
+              jsonStr = jsonStr.substring(0, lastBraceIndex + 1);
+            }
+          }
+        }
+        aiResult = JSON.parse(jsonStr);
+        aiResult.source = 'Groq-assisted extraction';
+      }
+    } catch (aiErr: any) {
+      console.warn('[API/extract] Groq AI parsing failed or rate-limited, running regex fallback on OCR text:', aiErr?.message);
     }
 
-    console.log('[API/extract] Parsing JSON result...');
-    
-    // Safely extract JSON in case the model wraps it in markdown
-    let jsonStr = aiResultStr;
-    const jsonMatch = aiResultStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-    if (jsonMatch && jsonMatch[1]) {
-      jsonStr = jsonMatch[1];
-    } else {
-      // Sometimes models output text before the first brace
-      const braceIndex = aiResultStr.indexOf('{');
-      if (braceIndex >= 0) {
-        jsonStr = aiResultStr.substring(braceIndex);
-        const lastBraceIndex = jsonStr.lastIndexOf('}');
-        if (lastBraceIndex >= 0) {
-          jsonStr = jsonStr.substring(0, lastBraceIndex + 1);
+    // Fallback: If AI structuring was unavailable or produced no tests, attempt regex extraction on OCR text
+    if (!aiResult || (!aiResult.tests?.length && !aiResult.medicines?.length)) {
+      const fallbackTests: Array<{ name: string; value: string; unit: string; referenceRange: string; flag: string | null }> = [];
+      const lines = extractedText.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const testMatch = trimmed.match(/^([A-Za-z0-9\s\-_/]+)[:\-]\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z/%μuLmgdLkg]+)?(?:\s*\((.*?)\))?/);
+        if (testMatch && testMatch[1].length < 35) {
+          fallbackTests.push({
+            name: testMatch[1].trim(),
+            value: testMatch[2].trim(),
+            unit: testMatch[3]?.trim() || '',
+            referenceRange: testMatch[4]?.trim() || '',
+            flag: null
+          });
         }
+      }
+
+      aiResult = {
+        reportDate: aiResult?.reportDate || null,
+        summary: fallbackTests.length > 0 
+          ? `Extracted ${fallbackTests.length} test parameter(s) from document: ${fallbackTests.map(t => `${t.name}: ${t.value} ${t.unit}`).join(', ')}`
+          : 'Report uploaded and OCR parsed successfully.',
+        tests: fallbackTests,
+        medicines: [],
+        confidence: fallbackTests.length > 0 ? 'medium' : 'low',
+        source: 'OCR-assisted extraction'
+      };
+    }
+
+    if (!aiResult.summary) {
+      if (aiResult.tests && aiResult.tests.length > 0) {
+        aiResult.summary = `Extracted ${aiResult.tests.length} laboratory test(s): ${aiResult.tests.map((t: any) => `${t.name} (${t.value} ${t.unit || ''})`).join(', ')}.`;
+      } else {
+        aiResult.summary = 'Medical document archived with verified OCR capture.';
       }
     }
 
-    const aiResult = JSON.parse(jsonStr);
-    console.log('[API/extract] Parsed JSON:', JSON.stringify(aiResult, null, 2));
-    
-    // Add source label
-    aiResult.source = 'Groq-assisted extraction';
+    aiResult.rawText = extractedText;
 
+    console.log('[API/extract] Final Extraction Result:', { testsCount: aiResult.tests?.length, hasSummary: !!aiResult.summary });
     return NextResponse.json({ data: aiResult });
 
   } catch (error: any) {

@@ -31,27 +31,75 @@ export default function ExtractionPage() {
   const runExtract = async () => {
     setLoading(true);
     const session = getSession();
-    const docName = session.documents?.[0]?.fileName || 'Unknown Report';
-    
+    const docs = session.documents || [];
+
     if (!navigator.onLine) {
-      setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error: You are currently offline. Document will be processed later.' });
-      updateSession({ extractedData: { tests: [], medicines: [], confidence: 'low', source: 'Error: You are currently offline. Document will be processed later.' } as any });
-    } else {
-      const res = await extractFromReport(session.documents[0]);
-      
-      if (res.error) {
-        setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error: ' + res.error });
-      } else if (res.data) {
-        setExtracted(res.data);
-      } else {
-        setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Empty response' });
-      }
-      updateSession({ extractedData: res.data as any });
+      const offlineMsg = 'Error: You are currently offline. Document will be processed later.';
+      setExtracted({ tests: [], medicines: [], confidence: 'low', source: offlineMsg });
+      updateSession({ extractedData: { tests: [], medicines: [], confidence: 'low', source: offlineMsg } as any });
+      setLoading(false);
+      return;
     }
-    
-    sync();
-    
-    setLoading(false);
+
+    try {
+      const updatedDocs: any[] = [];
+      const allTests: any[] = [];
+      const allMedicines: string[] = [];
+      const allSummaries: string[] = [];
+      let latestReportDate = '';
+
+      for (const doc of docs) {
+        try {
+          const res = await extractFromReport(doc);
+          const docData = res.data || { tests: [], medicines: [], confidence: 'low', source: res.error || 'Empty response' };
+          const docSummary = docData.summary || (docData.tests && docData.tests.length > 0 ? `Extracted ${docData.tests.length} test parameter(s).` : 'Archived medical document.');
+
+          const updatedDoc = {
+            ...doc,
+            extractedData: docData,
+            summary: docSummary
+          };
+          updatedDocs.push(updatedDoc);
+
+          if (docData.tests && docData.tests.length > 0) {
+            allTests.push(...docData.tests);
+          }
+          if (docData.medicines && docData.medicines.length > 0) {
+            allMedicines.push(...docData.medicines);
+          }
+          if (docSummary) {
+            allSummaries.push(`${doc.fileName}: ${docSummary}`);
+          }
+          if (docData.reportDate && !latestReportDate) {
+            latestReportDate = docData.reportDate;
+          }
+        } catch (singleErr) {
+          console.error(`Failed extraction for document ${doc.fileName}:`, singleErr);
+          updatedDocs.push(doc);
+        }
+      }
+
+      const consolidatedData: ExtractedClinicalData = {
+        reportDate: latestReportDate || undefined,
+        summary: allSummaries.length > 0 ? allSummaries.join('\n') : (allTests.length > 0 ? `Extracted ${allTests.length} test(s).` : 'Reports processed successfully.'),
+        tests: allTests,
+        medicines: Array.from(new Set(allMedicines)),
+        confidence: allTests.length > 0 ? 'high' : 'medium',
+        source: 'AI/OCR Multi-report Extraction'
+      };
+
+      setExtracted(consolidatedData);
+      updateSession({
+        documents: updatedDocs,
+        extractedData: consolidatedData
+      });
+      sync();
+    } catch (err: any) {
+      console.error('Multi-document extraction error:', err);
+      setExtracted({ tests: [], medicines: [], confidence: 'low', source: 'Error during extraction: ' + (err?.message || 'Unknown') });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinue = () => {

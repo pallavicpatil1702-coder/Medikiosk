@@ -70,6 +70,7 @@ export interface MedicalDocument {
   uploadedAt: string;
   size: string;
   extractedData?: ExtractedClinicalData;
+  summary?: string;
   dataUrl?: string; // Kept for demo/unauthenticated flow
   storagePath?: string;
   downloadUrl?: string;
@@ -77,6 +78,8 @@ export interface MedicalDocument {
 
 export interface ExtractedClinicalData {
   reportDate?: string;
+  summary?: string;
+  rawText?: string;
   tests: Array<{
     name: string;
     value: string;

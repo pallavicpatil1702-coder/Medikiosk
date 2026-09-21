@@ -40,7 +40,10 @@ import {
   Sliders,
   ExternalLink,
   ChevronDown,
-  Play
+  Play,
+  Download,
+  FileImage,
+  Folder
 } from 'lucide-react';
 import DoctorSummaryAudio from '@/components/DoctorSummaryAudio';
 import { syncQueueStateInFirestore } from '@/hooks/useSmartQueue';
@@ -143,6 +146,7 @@ function DoctorDashboardContent() {
             bodyLocations: data.bodyLocations || [],
             answers: data.answers || [],
             documents: data.documents || [],
+            extractedData: data.extractedData || null,
             redFlags: redFlags,
             clinicalSummary: data.clinicalSummary || data.summary || null,
             structuredPhysicianSummary: data.structuredPhysicianSummary || null,
@@ -249,6 +253,30 @@ function DoctorDashboardContent() {
     if (!selectedPatient) return [];
     return generateRealFHIRResources(selectedPatient);
   }, [selectedPatient]);
+
+  // Complete Medical Report History for selected patient across all visits
+  const patientAllDocuments = useMemo(() => {
+    if (!selectedPatient) return [];
+    const pId = selectedPatient.patientId;
+    const currentDocs: MedicalDocument[] = selectedPatient.documents || [];
+    
+    // Also include documents from any other past sessions of this same patient
+    const otherDocs = sessions
+      .filter((s) => s.id !== selectedPatient.id && s.patientId === pId)
+      .flatMap((s) => s.documents || []);
+
+    const seen = new Set<string>();
+    const combined: MedicalDocument[] = [];
+    
+    for (const doc of [...currentDocs, ...otherDocs]) {
+      const key = doc.id || `${doc.fileName}-${doc.size}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(doc);
+      }
+    }
+    return combined;
+  }, [selectedPatient, sessions]);
 
   // Handle Doctor Decision: Accept / Edit / Reject / Complete
   const handleDoctorDecision = async (
@@ -1029,82 +1057,148 @@ function DoctorDashboardContent() {
                   {/* TAB 3: Reports & OCR Extracted Data */}
                   {activeTab === 'reports' && (
                     <div className="space-y-6">
-                      <div className="text-xs text-[#556358]">
-                        Uploaded clinical documents and automated OCR extracted lab telemetry.
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#ded5c2]/60">
+                        <div>
+                          <div className="text-sm font-bold text-[#1b3d27] flex items-center gap-2">
+                            <Folder size={18} className="text-[#234e32]" />
+                            Complete Medical Report History
+                          </div>
+                          <div className="text-xs text-[#556358] mt-0.5">
+                            All uploaded clinical documents, OCR telemetry, and AI clinical summaries.
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#e4ede1] text-[#234e32] border border-[#c7d9c2] self-start sm:self-center">
+                          Total Reports: {patientAllDocuments.length}
+                        </span>
                       </div>
 
-                      {(!selectedPatient.documents || selectedPatient.documents.length === 0) ? (
+                      {/* Overall AI Summary if available */}
+                      {(selectedPatient.extractedData?.summary || patientAllDocuments.some(d => d.summary || d.extractedData?.summary)) && (
+                        <div className="rounded-2xl bg-[#e4ede1]/60 border border-[#c7d9c2] p-4">
+                          <div className="text-xs font-bold text-[#234e32] flex items-center gap-1.5 mb-1">
+                            <Sparkles size={14} /> AI Document Synthesis
+                          </div>
+                          <p className="text-xs text-[#1c241e] leading-relaxed whitespace-pre-wrap">
+                            {selectedPatient.extractedData?.summary || patientAllDocuments.map(d => d.summary || d.extractedData?.summary).filter(Boolean).join('\n')}
+                          </p>
+                        </div>
+                      )}
+
+                      {patientAllDocuments.length === 0 ? (
                         <div className="p-8 rounded-2xl bg-white border border-[#ded5c2] text-center text-xs text-[#556358]">
                           No previous medical records or lab files uploaded.
                         </div>
                       ) : (
-                        selectedPatient.documents.map((doc: MedicalDocument, idx: number) => (
-                          <div key={idx} className="rounded-2xl bg-white border border-[#ded5c2] p-5 space-y-4 shadow-2xs">
-                            {/* Document Header */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#e4ede1] border border-[#c7d9c2] flex items-center justify-center text-[#234e32]">
-                                  <FileText size={20} />
-                                </div>
-                                <div>
-                                  <div className="text-xs font-bold text-[#1c241e]">{doc.fileName}</div>
-                                  <div className="text-[10px] text-[#556358] font-mono">
-                                    {doc.fileType} • {doc.size || 'Unknown size'}
+                        patientAllDocuments.map((doc: MedicalDocument, idx: number) => {
+                          const docDate = doc.extractedData?.reportDate || (doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recorded in intake');
+                          const docSummary = doc.summary || doc.extractedData?.summary;
+                          const tests = doc.extractedData?.tests || [];
+                          const medicines = doc.extractedData?.medicines || [];
+
+                          return (
+                            <div key={doc.id || idx} className="rounded-2xl bg-white border border-[#ded5c2] p-5 space-y-4 shadow-2xs">
+                              {/* Document Header */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#ded5c2]/60">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 rounded-xl bg-[#e4ede1] border border-[#c7d9c2] flex items-center justify-center text-[#234e32] shrink-0">
+                                    {doc.fileType?.includes('image') ? <FileImage size={20} /> : <FileText size={20} />}
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-bold text-[#1c241e] flex items-center gap-2 flex-wrap">
+                                      <span>{doc.fileName || `Report_${idx + 1}`}</span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f5efe4] border border-[#ded5c2] text-[#556358]">
+                                        {doc.fileType || 'Document'}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-[#556358] font-mono mt-0.5 flex items-center gap-2">
+                                      <span>Report Date: <strong>{docDate}</strong></span>
+                                      <span>•</span>
+                                      <span>Size: {doc.size || 'Unknown size'}</span>
+                                    </div>
                                   </div>
                                 </div>
+
+                                {/* View / Download Button */}
+                                <div className="flex items-center gap-2 self-start sm:self-center">
+                                  {doc.downloadUrl || doc.dataUrl ? (
+                                    <a
+                                      href={doc.downloadUrl || doc.dataUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#234e32] hover:bg-[#1a3b26] text-white text-xs font-bold transition shadow-xs"
+                                    >
+                                      <Download size={13} />
+                                      <span>View / Download</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-[#829277] italic">Archived in Clinic Store</span>
+                                  )}
+                                </div>
                               </div>
 
-                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#f5efe4] border border-[#ded5c2] text-[#556358]">
-                                Attached
-                              </span>
-                            </div>
-
-                            {/* Extracted Lab Tests Table (only if present) */}
-                            {doc.extractedData?.tests && doc.extractedData.tests.length > 0 ? (
-                              <div className="space-y-2 pt-2 border-t border-[#ded5c2]">
-                                <div className="text-[11px] font-bold text-[#234e32] flex items-center gap-1.5">
-                                  <Sparkles size={13} /> Extracted Clinical Findings (OCR)
+                              {/* AI Report Summary */}
+                              {docSummary && (
+                                <div className="rounded-xl bg-[#fbf9f4] p-3 border border-[#ded5c2]/80 text-xs text-[#3e4a3f] leading-relaxed">
+                                  <strong className="text-[#234e32] font-semibold">AI Summary: </strong>
+                                  {docSummary}
                                 </div>
-                                <div className="rounded-xl border border-[#ded5c2] overflow-hidden overflow-x-auto">
-                                  <table className="w-full text-left text-[11px] whitespace-nowrap sm:whitespace-normal">
-                                    <thead className="bg-[#f5efe4] text-[#556358] font-mono">
-                                      <tr>
-                                        <th className="p-2.5">Test Name</th>
-                                        <th className="p-2.5">Result</th>
-                                        <th className="p-2.5">Unit</th>
-                                        <th className="p-2.5">Ref Range</th>
-                                        <th className="p-2.5">Flag</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[#ded5c2]">
-                                      {doc.extractedData.tests.map((t, tIdx) => (
-                                        <tr key={tIdx} className="hover:bg-[#fbf9f4]">
-                                          <td className="p-2.5 font-semibold text-[#1c241e]">{t.name}</td>
-                                          <td className="p-2.5 font-mono text-[#234e32] font-bold">{t.value}</td>
-                                          <td className="p-2.5 text-[#556358]">{t.unit}</td>
-                                          <td className="p-2.5 font-mono text-[#556358]">{t.referenceRange}</td>
-                                          <td className="p-2.5">
-                                            {t.flag ? (
-                                              <span className="px-1.5 py-0.5 rounded bg-[#fef2f2] text-[#b91c1c] font-bold text-[9px] border border-[#fecaca]">
-                                                {t.flag}
-                                              </span>
-                                            ) : (
-                                              <span className="text-[#829277]">—</span>
-                                            )}
-                                          </td>
+                              )}
+
+                              {/* Extracted Lab Tests Table */}
+                              {tests.length > 0 ? (
+                                <div className="space-y-2 pt-1">
+                                  <div className="text-[11px] font-bold text-[#234e32] flex items-center gap-1.5">
+                                    <Sparkles size={13} /> Extracted Clinical Findings (OCR) — {tests.length} parameter(s)
+                                  </div>
+                                  <div className="rounded-xl border border-[#ded5c2] overflow-hidden overflow-x-auto">
+                                    <table className="w-full text-left text-[11px] whitespace-nowrap sm:whitespace-normal">
+                                      <thead className="bg-[#f5efe4] text-[#556358] font-mono">
+                                        <tr>
+                                          <th className="p-2.5">Test Name</th>
+                                          <th className="p-2.5">Result</th>
+                                          <th className="p-2.5">Unit</th>
+                                          <th className="p-2.5">Ref Range</th>
+                                          <th className="p-2.5">Flag</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y divide-[#ded5c2]">
+                                        {tests.map((t, tIdx) => (
+                                          <tr key={tIdx} className="hover:bg-[#fbf9f4]">
+                                            <td className="p-2.5 font-semibold text-[#1c241e]">{t.name}</td>
+                                            <td className="p-2.5 font-mono text-[#234e32] font-bold">{t.value}</td>
+                                            <td className="p-2.5 text-[#556358]">{t.unit || '—'}</td>
+                                            <td className="p-2.5 font-mono text-[#556358]">{t.referenceRange || '—'}</td>
+                                            <td className="p-2.5">
+                                              {t.flag ? (
+                                                <span className="px-1.5 py-0.5 rounded bg-[#fef2f2] text-[#b91c1c] font-bold text-[9px] border border-[#fecaca]">
+                                                  {t.flag}
+                                                </span>
+                                              ) : (
+                                                <span className="text-[#829277]">—</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="text-[11px] text-[#829277] italic pt-1">
-                                No automated laboratory values extracted from this attachment.
-                              </div>
-                            )}
-                          </div>
-                        ))
+                              ) : (
+                                <div className="text-[11px] text-[#829277] italic pt-1">
+                                  No automated laboratory values extracted from this attachment.
+                                </div>
+                              )}
+
+                              {/* Medicines detected */}
+                              {medicines.length > 0 && (
+                                <div className="text-xs text-[#1c241e] bg-[#fbf9f4] p-2.5 rounded-xl border border-[#ded5c2]">
+                                  <strong className="text-[#234e32]">Prescription Medicines: </strong>
+                                  {medicines.join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   )}
