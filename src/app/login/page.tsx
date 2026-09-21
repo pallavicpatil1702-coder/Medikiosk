@@ -6,6 +6,7 @@ import { auth, db } from '@/lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
+import { clearSession } from '@/lib/store/store';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
 import Header from '@/components/Header';
 import { 
@@ -141,6 +142,7 @@ function LoginForm() {
       } else {
         // Login flow
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        clearSession();
         const tokenResult = await cred.user.getIdTokenResult(true);
         const userRole = (tokenResult.claims.role as string) || null;
 

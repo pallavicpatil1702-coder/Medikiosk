@@ -7,6 +7,7 @@ import {
   signOut 
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { clearSession } from '@/lib/store/store';
 
 export type UserRole = 'patient' | 'nurse' | 'doctor' | 'admin' | null;
 
@@ -86,6 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     await signOut(auth);
+    clearSession();
     setCurrentUser(null);
     setRole(null);
   };

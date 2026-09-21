@@ -12,7 +12,7 @@ import { useTranslation } from '@/lib/i18n';
 import Header from '@/components/Header';
 import { LogIn, UserPlus, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { getSession, updateSession } from '@/lib/store/store';
+import { getSession, updateSession, clearSession } from '@/lib/store/store';
 import { syncSessionToFirestore } from '@/lib/firestore';
 
 export default function PatientAuthPage() {
@@ -62,6 +62,9 @@ export default function PatientAuthPage() {
       if (isLogin) {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         newUid = userCredential.user.uid;
+        // When logging into an existing account, clear local temporary session
+        // so the user's authentic Firestore history and profile load cleanly
+        clearSession();
       } else {
         if (password !== confirmPassword) {
           setError(t('Passwords do not match'));
@@ -88,19 +91,19 @@ export default function PatientAuthPage() {
           consent: true,
           createdAt: new Date().toISOString()
         });
-      }
 
-      // If we had an anonymous UID, migrate any patientSessions to the new UID
-      if (oldUid && newUid && oldUid !== newUid) {
-        try {
-          const currentLocalSession = getSession();
-          if (currentLocalSession && currentLocalSession.answers && currentLocalSession.answers.length > 0) {
-            updateSession({ firestoreSessionId: undefined }); // Force creation of new doc with new patientId
-            await syncSessionToFirestore({ uid: newUid }, getSession(), updateSession, (currentLocalSession.status as any) || 'active');
-            console.log(`Migrated local session to new user ${newUid}`);
+        // Only migrate anonymous intake session on genuine new sign-up
+        if (oldUid && newUid && oldUid !== newUid) {
+          try {
+            const currentLocalSession = getSession();
+            if (currentLocalSession && currentLocalSession.answers && currentLocalSession.answers.length > 0) {
+              updateSession({ firestoreSessionId: undefined }); // Force creation of new doc with new patientId
+              await syncSessionToFirestore({ uid: newUid }, getSession(), updateSession, (currentLocalSession.status as any) || 'active');
+              console.log(`Migrated local intake session to new user ${newUid}`);
+            }
+          } catch (migrationError) {
+            console.error('Failed to migrate anonymous sessions:', migrationError);
           }
-        } catch (migrationError) {
-          console.error('Failed to migrate anonymous sessions:', migrationError);
         }
       }
 

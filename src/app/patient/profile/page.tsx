@@ -12,7 +12,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { generateUUID } from '@/lib/uuid';
 
 export default function ProfilePage() {
@@ -76,11 +76,12 @@ export default function ProfilePage() {
     loadPatientData();
   }, [currentUser]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const session = getSession();
+    const patientId = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : (session.patient?.id || generateUUID());
     const updatedPatient: Patient = {
       ...session.patient,
-      id: session.patient?.id || generateUUID(),
+      id: patientId,
       name,
       age: parseInt(age, 10) || 0,
       gender,
@@ -88,7 +89,24 @@ export default function ProfilePage() {
       createdAt: session.patient?.createdAt || new Date().toISOString(),
     };
     updateSession({ patient: updatedPatient });
-    sync();
+
+    // If authenticated, persist updated profile data to the canonical patient document in Firestore
+    if (currentUser && !currentUser.isAnonymous) {
+      try {
+        await setDoc(doc(db, 'patients', currentUser.uid), {
+          id: currentUser.uid,
+          name,
+          age: parseInt(age, 10) || 0,
+          gender,
+          contact,
+          email: currentUser.email || '',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Could not save patient profile update to Firestore:', e);
+      }
+    }
+
     router.push('/patient/complaint');
   };
 

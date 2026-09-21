@@ -54,6 +54,16 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
+    match /patients/{patientId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == patientId ||
+        request.auth.token.role == 'nurse' ||
+        request.auth.token.role == 'doctor' ||
+        request.auth.token.role == 'admin'
+      );
+      allow write: if isAuthenticated() && request.auth.uid == patientId;
+    }
+
     match /reports/{reportId} {
       allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
       allow read: if isAuthenticated();

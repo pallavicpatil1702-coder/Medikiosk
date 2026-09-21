@@ -10,6 +10,9 @@ import { updateSession } from '@/lib/store/store';
 import { Patient } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { generateUUID } from '@/lib/uuid';
 
 export default function IdentifyPage() {
@@ -20,23 +23,74 @@ export default function IdentifyPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { sync } = useSync();
+  const { currentUser } = useAuth();
 
-  const handleContinueWithAbha = (abhaId?: string) => {
+  const handleContinueWithAbha = async (abhaId?: string) => {
     setLoading(true);
     setError('');
     try {
+      let patientId = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : generateUUID();
+      let patientData: Partial<Patient> = {};
+      const cleanAbha = abhaId?.trim() || undefined;
+
+      // 1. If user is authenticated, check for existing Firestore profile
+      if (currentUser && !currentUser.isAnonymous) {
+        try {
+          const profileRef = doc(db, 'patients', currentUser.uid);
+          const profileSnap = await getDoc(profileRef);
+          if (profileSnap.exists()) {
+            const d = profileSnap.data();
+            patientData = {
+              name: d.name || '',
+              age: d.age || 0,
+              gender: d.gender || 'Male',
+              contact: d.contact || '',
+              abhaId: cleanAbha || d.abhaId || undefined,
+              email: d.email || currentUser.email || undefined
+            };
+          }
+        } catch (e) {
+          console.warn('Could not fetch existing patient profile by UID:', e);
+        }
+      }
+
+      // 2. If ABHA ID was provided and no profile found yet, check if an existing patient has this ABHA ID
+      if (cleanAbha && (!patientData.name || !currentUser || currentUser.isAnonymous)) {
+        try {
+          const abhaQuery = query(collection(db, 'patients'), where('abhaId', '==', cleanAbha));
+          const abhaSnap = await getDocs(abhaQuery);
+          if (!abhaSnap.empty) {
+            const matchDoc = abhaSnap.docs[0];
+            const d = matchDoc.data();
+            patientId = matchDoc.id;
+            patientData = {
+              name: d.name || '',
+              age: d.age || 0,
+              gender: d.gender || 'Male',
+              contact: d.contact || '',
+              abhaId: cleanAbha,
+              email: d.email || undefined
+            };
+          }
+        } catch (e) {
+          console.warn('Could not query patient by ABHA ID:', e);
+        }
+      }
+
       const p: Patient = {
-        id: generateUUID(),
-        abhaId: abhaId?.trim() || undefined,
-        name: '',
-        age: 0,
-        gender: 'Male',
+        id: patientId,
+        abhaId: cleanAbha || patientData.abhaId,
+        name: patientData.name || '',
+        age: patientData.age || 0,
+        gender: (patientData.gender as any) || 'Male',
+        contact: patientData.contact || '',
         createdAt: new Date().toISOString()
       };
+
       updateSession({ patient: p });
-      sync();
       router.push('/patient/consent');
     } catch (err) {
+      console.error('Error during identification:', err);
       setError('An error occurred during registration.');
     } finally {
       setLoading(false);

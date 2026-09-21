@@ -5,6 +5,7 @@ export interface Patient {
   age: number;
   gender: string;
   contact?: string;
+  email?: string;
   language?: string;
   consent?: boolean;
   createdAt: string;

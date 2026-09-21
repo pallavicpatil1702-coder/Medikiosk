@@ -10,6 +10,9 @@ import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
 
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+
 const languages = [
   { code: 'en', name: 'English', label: 'English', flagCode: 'gb' },
   { code: 'hi', name: 'Hindi', label: 'हिन्दी', flagCode: 'in' },
@@ -27,6 +30,8 @@ export default function LanguagePage() {
   const { t } = useTranslation();
   const { sync } = useSync();
   const { isReady } = usePatientAuth();
+  const router = useRouter();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const saved = loadFromStore<string>(STORAGE_KEYS.language);
@@ -36,12 +41,15 @@ export default function LanguagePage() {
   const handleContinue = () => {
     saveToStore(STORAGE_KEYS.language, selected);
     
-    // Isolate session state on new consultation using static import
+    // Isolate session state on new consultation
     clearSession();
     
+    // Preserve authenticated patient UID if already logged in
+    const patientId = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : '';
+
     // Re-initialize with completely fresh state
     updateSession({ 
-      patient: { id: '', name: '', age: 0, gender: '', language: selected, createdAt: new Date().toISOString() },
+      patient: { id: patientId, name: '', age: 0, gender: '', language: selected, createdAt: new Date().toISOString() },
       chiefComplaint: '',
       bodyLocations: [],
       answers: [],
@@ -51,8 +59,7 @@ export default function LanguagePage() {
       activeModules: [],
       completedModules: []
     });
-    sync();
-    window.location.href = '/patient/identify';
+    router.push('/patient/identify');
   };
 
   return (

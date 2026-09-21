@@ -4,26 +4,60 @@ import Header from '@/components/Header';
 import ProgressBar from '@/components/ProgressBar';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
 import { Stethoscope, AlertTriangle, FileText, Pill, User, CheckCircle2, Sparkles, ArrowRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
 import type { PatientSession, ClinicalSummary, AyurvedaReference } from '@/lib/types';
 import { buildHistory } from '@/lib/clinicalHistory';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 import { generateUUID } from '@/lib/uuid';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-export default function SummaryPage() {
+function SummaryPageContent() {
   const [session, setSessionState] = useState<PatientSession | null>(null);
   const [ayurvedaReferences, setAyurvedaReferences] = useState<AyurvedaReference[] | null>(null);
   const [isGeneratingAyurveda, setIsGeneratingAyurveda] = useState(false);
   const [hasMedicationSafetyAlerts, setHasMedicationSafetyAlerts] = useState(false);
   const [isGeneratingSafety, setIsGeneratingSafety] = useState(false);
+  const [isViewingHistory, setIsViewingHistory] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const { sync } = useSync();
 
   useEffect(() => {
+    const querySessionId = searchParams?.get('sessionId');
+
+    if (querySessionId) {
+      setIsViewingHistory(true);
+      // Fetch session from Firestore
+      getDoc(doc(db, 'patientSessions', querySessionId)).then((snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const s: PatientSession = {
+            ...data,
+            firestoreSessionId: snap.id,
+            patient: data.patient || { id: data.patientId || '', name: 'Patient' },
+            answers: data.answers || [],
+            chiefComplaint: data.chiefComplaint || '',
+            clinicalSummary: data.summary || data.clinicalSummary,
+            documents: data.documents || [],
+            redFlags: data.redFlags || [],
+          } as PatientSession;
+          setSessionState(s);
+          if (s.ayurvedaReferences) setAyurvedaReferences(s.ayurvedaReferences);
+          if (s.medicationSafetyAlerts && s.medicationSafetyAlerts.length > 0) {
+            setHasMedicationSafetyAlerts(true);
+          }
+        }
+      }).catch((err) => {
+        console.error('Failed to load session from Firestore:', err);
+      });
+      return;
+    }
+
     const s = getSession();
     setSessionState(s);
     if (s && !s.ayurvedaReferences) {
@@ -57,7 +91,7 @@ export default function SummaryPage() {
     } else if (s && s.medicationSafetyAlerts && s.medicationSafetyAlerts.length > 0) {
       setHasMedicationSafetyAlerts(true);
     }
-  }, []);
+  }, [searchParams]);
 
   const handleSendToDoctor = () => {
     if (!session || !session.patient || !session.answers) return;
@@ -305,16 +339,41 @@ export default function SummaryPage() {
         </div>
 
         <div className="flex justify-end w-full">
-          <button 
-            onClick={handleSendToDoctor} 
-            className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-10 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
-          >
-            <span>{t('Send to Doctor')}</span>
-            <ArrowRight size={20} />
-          </button>
+          {isViewingHistory ? (
+            <button 
+              onClick={() => router.push('/patient/dashboard')} 
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-10 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
+            >
+              <span>{t('Return to Dashboard')}</span>
+              <ArrowRight size={20} />
+            </button>
+          ) : (
+            <button 
+              onClick={handleSendToDoctor} 
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-2xl bg-[#234e32] hover:bg-[#1a3b26] text-white font-bold px-10 py-4 text-lg shadow-xl shadow-[#234e32]/25 transition"
+            >
+              <span>{t('Send to Doctor')}</span>
+              <ArrowRight size={20} />
+            </button>
+          )}
         </div>
       </div>
     </AyurvedaBackground>
+  );
+}
+
+export default function SummaryPage() {
+  return (
+    <Suspense fallback={
+      <AyurvedaBackground variant="kiosk">
+        <Header title="Clinical Intake Summary" />
+        <div className="max-w-4xl mx-auto px-6 py-24 text-center">
+          <p className="text-[#556358] font-bold">Loading summary...</p>
+        </div>
+      </AyurvedaBackground>
+    }>
+      <SummaryPageContent />
+    </Suspense>
   );
 }
 
