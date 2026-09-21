@@ -11,7 +11,7 @@ import { Patient } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { generateUUID } from '@/lib/uuid';
 
@@ -29,24 +29,34 @@ export default function IdentifyPage() {
     setLoading(true);
     setError('');
     try {
-      let patientId = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : generateUUID();
+      const activeUser = currentUser || auth.currentUser;
+      let patientId = (activeUser && !activeUser.isAnonymous) ? activeUser.uid : generateUUID();
       let patientData: Partial<Patient> = {};
       const cleanAbha = abhaId?.trim() || undefined;
 
       // 1. If user is authenticated, check for existing Firestore profile
-      if (currentUser && !currentUser.isAnonymous) {
+      if (activeUser && !activeUser.isAnonymous) {
         try {
-          const profileRef = doc(db, 'patients', currentUser.uid);
+          const profileRef = doc(db, 'patients', activeUser.uid);
           const profileSnap = await getDoc(profileRef);
           if (profileSnap.exists()) {
             const d = profileSnap.data();
             patientData = {
-              name: d.name || '',
-              age: d.age || 0,
+              name: d.name || d.fullName || activeUser.displayName || '',
+              age: d.age ? Number(d.age) : (d.dob ? parseInt(d.dob, 10) || 0 : 0),
               gender: d.gender || 'Male',
-              contact: d.contact || '',
+              contact: d.contact || d.phone || d.mobile || activeUser.phoneNumber || '',
               abhaId: cleanAbha || d.abhaId || undefined,
-              email: d.email || currentUser.email || undefined
+              email: d.email || activeUser.email || undefined
+            };
+          } else if (activeUser.email === 'patient@medi-kiosk.demo') {
+            patientData = {
+              name: 'Rahul Sharma',
+              age: 35,
+              gender: 'Male',
+              contact: '9876543210',
+              abhaId: cleanAbha || undefined,
+              email: 'patient@medi-kiosk.demo'
             };
           }
         } catch (e) {
@@ -55,7 +65,7 @@ export default function IdentifyPage() {
       }
 
       // 2. If ABHA ID was provided and no profile found yet, check if an existing patient has this ABHA ID
-      if (cleanAbha && (!patientData.name || !currentUser || currentUser.isAnonymous)) {
+      if (cleanAbha && (!patientData.name || !activeUser || activeUser.isAnonymous)) {
         try {
           const abhaQuery = query(collection(db, 'patients'), where('abhaId', '==', cleanAbha));
           const abhaSnap = await getDocs(abhaQuery);
@@ -64,10 +74,10 @@ export default function IdentifyPage() {
             const d = matchDoc.data();
             patientId = matchDoc.id;
             patientData = {
-              name: d.name || '',
-              age: d.age || 0,
+              name: d.name || d.fullName || '',
+              age: d.age ? Number(d.age) : (d.dob ? parseInt(d.dob, 10) || 0 : 0),
               gender: d.gender || 'Male',
-              contact: d.contact || '',
+              contact: d.contact || d.phone || d.mobile || '',
               abhaId: cleanAbha,
               email: d.email || undefined
             };
@@ -84,6 +94,7 @@ export default function IdentifyPage() {
         age: patientData.age || 0,
         gender: (patientData.gender as any) || 'Male',
         contact: patientData.contact || '',
+        email: patientData.email || activeUser?.email || undefined,
         createdAt: new Date().toISOString()
       };
 

@@ -12,6 +12,7 @@ import { usePatientAuth } from '@/hooks/usePatientAuth';
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { auth } from '@/lib/firebase';
 
 const languages = [
   { code: 'en', name: 'English', label: 'English', flagCode: 'gb' },
@@ -45,7 +46,8 @@ export default function LanguagePage() {
     clearSession();
     
     // Preserve authenticated patient UID if already logged in
-    const patientId = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : '';
+    const activeUser = currentUser || auth.currentUser;
+    const patientId = (activeUser && !activeUser.isAnonymous) ? activeUser.uid : '';
 
     // Re-initialize with completely fresh state
     updateSession({ 
