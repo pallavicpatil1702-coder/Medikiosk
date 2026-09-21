@@ -105,6 +105,7 @@ export default function ProfilePage() {
               contact: resolvedContact,
               email: resolvedEmail || undefined,
               abhaId: resolvedAbhaId,
+              language: session.patient?.language || session.language,
               createdAt: resolvedCreatedAt
             }
           });
@@ -152,6 +153,7 @@ export default function ProfilePage() {
       gender,
       contact: contact.trim(),
       email: email.trim() || session.patient?.email || activeUser?.email || undefined,
+      language: session.patient?.language || session.language,
       createdAt: session.patient?.createdAt || new Date().toISOString(),
     };
     updateSession({ patient: updatedPatient });
@@ -178,7 +180,7 @@ export default function ProfilePage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Patient Profile" backHref="/patient/consent" />
+      <Header title={t('Patient Profile')} backHref="/patient/consent" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={5} total={13} />
         <div className="text-center mb-10">

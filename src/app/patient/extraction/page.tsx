@@ -114,7 +114,7 @@ export default function ExtractionPage() {
   if (!hasDocs) {
     return (
       <AyurvedaBackground variant="kiosk">
-        <Header title="Medical Report Analysis" backHref="/patient/reports" />
+        <Header title={t('Medical Report Analysis')} backHref="/patient/reports" />
         <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
           <ProgressBar current={12} total={13} />
           <div className="rounded-3xl bg-[#fbf9f4]/95 border border-[#ded5c2] shadow-xl p-6 md:p-12 text-center">
@@ -135,7 +135,7 @@ export default function ExtractionPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Medical Report Analysis" backHref="/patient/reports" />
+      <Header title={t('Medical Report Analysis')} backHref="/patient/reports" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={12} total={13} />
         <div className="text-center mb-10">

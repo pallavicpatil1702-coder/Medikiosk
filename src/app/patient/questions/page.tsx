@@ -229,7 +229,7 @@ export default function QuestionsPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Adaptive Questions" backHref={backHref} />
+      <Header title={t('Adaptive Questions')} backHref={backHref} />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={progress} total={totalSteps} />
         <div className="mb-6 flex items-center gap-3">

@@ -46,7 +46,21 @@ export function getSession(): PatientSession {
 
 export function updateSession(updates: Partial<PatientSession>) {
   const current = getSession();
-  const next = { ...current, ...updates };
+  const savedLang = loadFromStore<string>(STORAGE_KEYS.language) || 'en';
+  const nextLang = updates.language || updates.patient?.language || current.language || current.patient?.language || savedLang;
+
+  const nextPatient = updates.patient
+    ? { ...current.patient, ...updates.patient, language: updates.patient.language || current.patient?.language || nextLang }
+    : current.patient
+    ? { ...current.patient, language: current.patient.language || nextLang }
+    : undefined;
+
+  const next: PatientSession = {
+    ...current,
+    ...updates,
+    language: nextLang,
+    ...(nextPatient ? { patient: nextPatient } : {})
+  };
   saveToStore(STORAGE_KEYS.patientSession, next);
   return next;
 }

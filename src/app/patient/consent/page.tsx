@@ -32,7 +32,7 @@ export default function ConsentPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Your Consent" backHref="/patient/identify" />
+      <Header title={t('Your Consent')} backHref="/patient/identify" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={4} total={13} />
         <div className="text-center mb-10">

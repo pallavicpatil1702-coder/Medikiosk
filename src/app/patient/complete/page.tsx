@@ -32,6 +32,13 @@ export default function CompletePage() {
            setSyncStatus('sync_error');
         } else {
            setSyncStatus('synced');
+           if (localSession.firestoreSessionId) {
+             fetch('/api/ai/generatePhysicianSummary', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ sessionId: localSession.firestoreSessionId })
+             }).catch(err => console.error('Failed to trigger physician summary generation:', err));
+           }
            setTimeout(() => {
              // If they are an anonymous kiosk user, auto-redirect to the live queue
              // If they are an authenticated patient, don't auto-redirect, let them choose
@@ -97,6 +104,10 @@ export default function CompletePage() {
             </div>
           )}
           
+          {syncStatus === 'synced' && (
+            <p className="text-xs font-bold text-[#234e32] uppercase tracking-wider mb-2">{t('Information sent to doctor')}</p>
+          )}
+
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#1b3d27] tracking-tight mb-4">
             {syncStatus === 'syncing' && t('Saving information...')}
             {syncStatus === 'synced' && t('Information successfully recorded.')}
@@ -117,7 +128,7 @@ export default function CompletePage() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#6f4827] hover:bg-[#59391e] text-white font-bold px-7 py-3.5 text-base shadow-md transition disabled:opacity-50"
               >
                 <RefreshCw size={18} className={retrying ? 'animate-spin' : ''} />
-                <span>{retrying ? 'Retrying Cloud Sync...' : 'Retry Cloud Sync Now'}</span>
+                <span>{retrying ? t('Retrying Cloud Sync...') : t('Retry Cloud Sync Now')}</span>
               </button>
             )}
 

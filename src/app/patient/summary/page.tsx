@@ -10,7 +10,6 @@ import { getSession, updateSession } from '@/lib/store/store';
 import type { PatientSession, ClinicalSummary, AyurvedaReference } from '@/lib/types';
 import { buildHistory } from '@/lib/clinicalHistory';
 import { useTranslation } from '@/lib/i18n';
-import { useSync } from '@/hooks/useSync';
 import { generateUUID } from '@/lib/uuid';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -25,7 +24,6 @@ function SummaryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
-  const { sync } = useSync();
 
   useEffect(() => {
     const querySessionId = searchParams?.get('sessionId');
@@ -96,20 +94,27 @@ function SummaryPageContent() {
   const handleSendToDoctor = () => {
     if (!session || !session.patient || !session.answers) return;
 
-    const history = session.clinicalHistory || buildHistory(session.chiefComplaint, session.answers);
+    const currentLang = session.language || session.patient?.language || 'en';
+    const history = session.clinicalHistory || buildHistory(session.chiefComplaint, session.answers, currentLang);
+    const localizedAiNotes = currentLang === 'hi'
+      ? `मरीज इनपुट पर आधारित स्वचालित नोट्स। ${session.redFlags?.length ? 'रेड फ्लैग पाए गए, तत्काल ध्यान देने की आवश्यकता है।' : 'कोई रेड फ्लैग नहीं पाया गया। सामान्य मूल्यांकन की सिफारिश की जाती है।'}`
+      : currentLang === 'mr'
+      ? `रुग्ण इनपुटवर आधारित स्वयंचलित नोट्स. ${session.redFlags?.length ? 'रेड फ्लॅग आढळले, त्वरित लक्ष देणे आवश्यक आहे.' : 'कोणतेही रेड फ्लॅग आढळले नाहीत. सामान्य मूल्यांकनाची शिफारस केली जाते.'}`
+      : 'Auto-generated notes based on patient input. ' + (session.redFlags?.length ? 'Red flags detected, requires prompt attention.' : 'No red flags detected. Routine evaluation recommended.');
+
     const summary: ClinicalSummary = {
       id: generateUUID(),
       patientId: session.patient.id,
       generatedAt: new Date().toISOString(),
       patient: session.patient,
       history: history,
-      medications: history.medicationTaken || 'None',
-      allergies: history.allergies || 'No known allergy reported',
-      pastHistory: history.pastMedicalHistory || 'No major history reported',
+      medications: history.medicationTaken || (currentLang === 'hi' ? 'कोई नहीं' : currentLang === 'mr' ? 'काही नाही' : 'None'),
+      allergies: history.allergies || (currentLang === 'hi' ? 'कोई ज्ञात एलर्जी नहीं' : currentLang === 'mr' ? 'कोणतीही ज्ञात ऍलर्जी नाही' : 'No known allergy reported'),
+      pastHistory: history.pastMedicalHistory || (currentLang === 'hi' ? 'कोई बड़ा इतिहास नहीं' : currentLang === 'mr' ? 'कोणताही मोठा इतिहास नाही' : 'No major history reported'),
       investigationResults: session.extractedData ? JSON.stringify(session.extractedData) : 'No reports',
       previousReports: session.documents?.map(d => d.fileName) || [],
       redFlags: session.redFlags || [],
-      aiNotes: 'Auto-generated notes based on patient input. ' + (session.redFlags?.length ? 'Red flags detected, requires prompt attention.' : 'No red flags detected. Routine evaluation recommended.'),
+      aiNotes: localizedAiNotes,
       status: 'pending'
     };
 
@@ -119,40 +124,14 @@ function SummaryPageContent() {
       physicianSummaryStatus: 'pending'
     });
     
-    // Sync the local session to Firestore to ensure sessionId is created and data is saved
-    sync('completed');
-
-    // Fire & forget the LLM physician summary generation in the background
-    // We do NOT await this because we want to immediately redirect the patient to completion
-    if (session.firestoreSessionId) {
-      fetch('/api/ai/generatePhysicianSummary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: session.firestoreSessionId })
-      }).catch(err => console.error('Failed to trigger physician summary generation:', err));
-    } else {
-      // If firestoreSessionId is not instantly available, we rely on a backend trigger or 
-      // queue processor, but ideally sync('completed') sets it fast enough, or we can use 
-      // the known doc ID. We will wait a brief moment for sync to return if needed.
-      setTimeout(() => {
-        const updatedSession = getSession();
-        if (updatedSession?.firestoreSessionId) {
-          fetch('/api/ai/generatePhysicianSummary', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: updatedSession.firestoreSessionId })
-          }).catch(console.error);
-        }
-      }, 2000);
-    }
-
+    // Redirect immediately to completion page which manages the sync and queue assignment lifecycle
     router.push('/patient/complete');
   };
 
   if (!session || !session.patient) {
     return (
       <AyurvedaBackground variant="kiosk">
-        <Header title="Clinical Intake Summary" backHref="/patient/extraction" />
+        <Header title={t('Clinical Intake Summary')} backHref="/patient/extraction" />
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
           <p className="text-[#556358]">{t('Loading summary...')}</p>
         </div>
@@ -161,12 +140,13 @@ function SummaryPageContent() {
   }
 
   const patient = session.patient;
-  const history = session.clinicalHistory || buildHistory(session.chiefComplaint, session.answers || []);
+  const currentLang = session.language || session.patient?.language || 'en';
+  const history = session.clinicalHistory || buildHistory(session.chiefComplaint, session.answers || [], currentLang);
   const redFlags = session.redFlags || [];
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Clinical Intake Summary" backHref="/patient/extraction" />
+      <Header title={t('Clinical Intake Summary')} backHref="/patient/extraction" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={13} total={13} />
         <div className="text-center mb-10">
@@ -184,7 +164,7 @@ function SummaryPageContent() {
               <Sparkles size={24} className="text-[#e8f1e6]" />
             </div>
             <div>
-              <span className="text-xs font-bold text-[#829277] uppercase tracking-widest">Pre-Consultation Dossier</span>
+              <span className="text-xs font-bold text-[#829277] uppercase tracking-widest">{t('Information sent to doctor')} • {t('Pre-Consultation Dossier')}</span>
               <h3 className="text-2xl font-serif font-bold text-[#1b3d27]">{t('Summary Card')}</h3>
             </div>
           </div>
@@ -328,12 +308,16 @@ function SummaryPageContent() {
           </div>
           
           <div className="mt-6 rounded-2xl bg-[#f8f5ee] border border-[#ded5c2] p-5">
-            <h4 className="text-xs font-extrabold text-[#234e32] uppercase tracking-widest mb-1.5">{t('AI Notes')}</h4>
-            <div className="text-sm text-[#4a5749] leading-relaxed">
-              {t('Patient presented with')} {history.chiefComplaint}. 
-              {redFlags.length > 0 ? ` ${t('Red flags detected requiring prompt attention.')}` : ` ${t('No red flags detected.')}`}
-              {session.documents?.length ? ` ${t('Prior medical reports uploaded.')}` : ''}
-              {session.extractedData?.tests && session.extractedData.tests.length > 0 ? ` ${t('Extracted')} ${session.extractedData.tests.length} ${t('tests from report.')}` : ''}
+            <h4 className="text-xs font-extrabold text-[#234e32] uppercase tracking-widest mb-1.5">{t('Adaptive Summary')}</h4>
+            <div className="text-sm text-[#4a5749] leading-relaxed whitespace-pre-wrap">
+              {session.patientSummary || session.structuredPhysicianSummary?.patientSummary || (
+                <>
+                  {t('Patient presented with')} {history.chiefComplaint}. 
+                  {redFlags.length > 0 ? ` ${t('Red flags detected requiring prompt attention.')}` : ` ${t('No red flags detected.')}`}
+                  {session.documents?.length ? ` ${t('Prior medical reports uploaded.')}` : ''}
+                  {session.extractedData?.tests && session.extractedData.tests.length > 0 ? ` ${t('Extracted')} ${session.extractedData.tests.length} ${t('tests from report.')}` : ''}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -363,12 +347,13 @@ function SummaryPageContent() {
 }
 
 export default function SummaryPage() {
+  const { t } = useTranslation();
   return (
     <Suspense fallback={
       <AyurvedaBackground variant="kiosk">
-        <Header title="Clinical Intake Summary" />
+        <Header title={t('Clinical Intake Summary')} />
         <div className="max-w-4xl mx-auto px-6 py-24 text-center">
-          <p className="text-[#556358] font-bold">Loading summary...</p>
+          <p className="text-[#556358] font-bold">{t('Loading summary...')}</p>
         </div>
       </AyurvedaBackground>
     }>

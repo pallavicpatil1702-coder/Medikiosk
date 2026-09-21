@@ -126,10 +126,9 @@ export function usePatientQueuePolling(sessionId?: string, patientId?: string) {
 
           const position = data.queuePosition ?? 1;
           const patientsAhead = data.patientsAhead !== undefined ? data.patientsAhead : Math.max(0, position - 1);
-          const rawToken = data.queueTokenNumber || `#${docSnap.id.substring(0, 4).toUpperCase()}`;
-          const normalizedToken = formatTokenNumber(rawToken);
-          const currentServing = formatTokenNumber(data.currentServingToken || (patientsAhead === 0 ? normalizedToken : '--'));
-          const estimatedWaitMinutes = data.estimatedWaitMinutes !== undefined ? data.estimatedWaitMinutes : Math.max(0, patientsAhead * 10);
+          const normalizedToken = data.queueTokenNumber ? formatTokenNumber(data.queueTokenNumber) : '--';
+          const currentServing = data.currentServingToken ? formatTokenNumber(data.currentServingToken) : '--';
+          const estimatedWaitMinutes = data.estimatedWaitMinutes !== undefined ? data.estimatedWaitMinutes : (patientsAhead * 10);
           const expectedTurnTimeStr = calculateExpectedTurnTime(estimatedWaitMinutes);
           const consultationRange = calculateConsultationTimeRange(data.consultationStartedAt);
 
@@ -212,10 +211,9 @@ export function usePatientQueuePolling(sessionId?: string, patientId?: string) {
           const activeDoc = docs[0];
           const position = activeDoc.queuePosition ?? 1;
           const patientsAhead = activeDoc.patientsAhead !== undefined ? activeDoc.patientsAhead : Math.max(0, position - 1);
-          const rawToken = activeDoc.queueTokenNumber || `#${activeDoc.firestoreSessionId.substring(0, 4).toUpperCase()}`;
-          const normalizedToken = formatTokenNumber(rawToken);
-          const currentServing = formatTokenNumber(activeDoc.currentServingToken || (patientsAhead === 0 ? normalizedToken : '--'));
-          const estimatedWaitMinutes = activeDoc.estimatedWaitMinutes !== undefined ? activeDoc.estimatedWaitMinutes : Math.max(0, patientsAhead * 10);
+          const normalizedToken = activeDoc.queueTokenNumber ? formatTokenNumber(activeDoc.queueTokenNumber) : '--';
+          const currentServing = activeDoc.currentServingToken ? formatTokenNumber(activeDoc.currentServingToken) : '--';
+          const estimatedWaitMinutes = activeDoc.estimatedWaitMinutes !== undefined ? activeDoc.estimatedWaitMinutes : (patientsAhead * 10);
           const expectedTurnTimeStr = calculateExpectedTurnTime(estimatedWaitMinutes);
           const consultationRange = calculateConsultationTimeRange(activeDoc.consultationStartedAt);
 

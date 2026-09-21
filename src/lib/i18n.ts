@@ -9,6 +9,62 @@ type Translations = Record<LanguageCode, Record<string, string>>;
 
 const translations: Translations = {
   en: {
+    "Adaptive Summary": "Adaptive Summary",
+    "Information sent to doctor": "Information sent to doctor",
+    "Medical History": "Medical History",
+    "Symptoms": "Symptoms",
+    "Reports": "Reports",
+    "Next": "Next",
+    "Completed": "Completed",
+    "Clinical Intake Summary": "Clinical Intake Summary",
+    "Pre-Consultation Dossier": "Pre-Consultation Dossier",
+    "Describe Complaint": "Describe Complaint",
+    "Affected Body Areas": "Affected Body Areas",
+    "Intake Submitted": "Intake Submitted",
+    "Saving information...": "Saving information...",
+    "Information successfully recorded.": "Information successfully recorded.",
+    "Saved locally. Cloud sync pending.": "Saved locally. Cloud sync pending.",
+    "Please wait while we securely transmit your data.": "Please wait while we securely transmit your data.",
+    "Your information has been sent for doctor review.": "Your information has been sent for doctor review.",
+    "Your intake is preserved locally. Click below to retry transmitting to the clinic.": "Your intake is preserved locally. Click below to retry transmitting to the clinic.",
+    "Retry Cloud Sync Now": "Retry Cloud Sync Now",
+    "Retrying Cloud Sync...": "Retrying Cloud Sync...",
+    "Return to Dashboard": "Return to Dashboard",
+    "Start New Consultation": "Start New Consultation",
+    "Return to Kiosk Home": "Return to Kiosk Home",
+    "Analyze Report & Extract Data": "Analyze Report & Extract Data",
+    "AI/OCR Assisted": "AI/OCR Assisted",
+    "Structured Extraction": "Structured Extraction",
+    "Lab Results": "Lab Results",
+    "Uploaded On": "Uploaded On",
+    "Medicines": "Medicines",
+    "Test Name": "Test Name",
+    "Result": "Result",
+    "Unit": "Unit",
+    "Reference Range": "Reference Range",
+    "Flag": "Flag",
+    "Normal": "Normal",
+    "High": "High",
+    "Low": "Low",
+    "Abnormal": "Abnormal",
+    "Ayurveda Clinical Reference": "Ayurveda Clinical Reference",
+    "Possible terminology:": "Possible terminology:",
+    "Based on:": "Based on:",
+    "Clinical reference only. Final assessment by physician.": "Clinical reference only. Final assessment by physician.",
+    "Medication Safety": "Medication Safety",
+    "Analyzing medication history...": "Analyzing medication history...",
+    "Your reported medicines will be reviewed by the healthcare professional.": "Your reported medicines will be reviewed by the healthcare professional.",
+    "Patient Interview Transcript": "Patient Interview Transcript",
+    "Clinical Intake Assessment": "Clinical Intake Assessment",
+    "No interview questions answered.": "No interview questions answered.",
+    "Extracted": "Extracted",
+    "tests from report.": "tests from report.",
+    "In Progress": "In Progress",
+    "YOUR TURN": "YOUR TURN",
+    "In Triage": "In Triage",
+    "Waiting": "Waiting",
+    "Saving securely to your intake profile": "Saving securely to your intake profile",
+
     "Language": "Language",
     "Multilingual • Touch Friendly • Voice Intake": "Multilingual • Touch Friendly • Voice Intake",
     "Smart AI-Assisted": "Smart AI-Assisted",
@@ -299,6 +355,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "e.g. Paracetamol 500mg"
 },
   hi: {
+
     "Language": "भाषा",
     "Multilingual • Touch Friendly • Voice Intake": "बहुभाषी • टच फ्रेंडली • वॉयस इनटेक",
     "Smart AI-Assisted": "स्मार्ट एआई-सहायता प्राप्त",
@@ -592,6 +649,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "उदा. पैरासिटामोल 500mg"
 },
   mr: {
+
     "Language": "भाषा",
     "Multilingual • Touch Friendly • Voice Intake": "बहुभाषिक • टच फ्रेंडली • व्हॉइस इनटेक",
     "Smart AI-Assisted": "स्मार्ट एआय-आधारित",
@@ -886,6 +944,7 @@ const translations: Translations = {
 }
 ,
   bn: {
+
     "Language": "ভাষা",
     "Multilingual • Touch Friendly • Voice Intake": "বহুভাষিক • টাচ ফ্রেন্ডলি • ভয়েস ইনটেক",
     "Smart AI-Assisted": "স্মার্ট এআই-সহায়তা",
@@ -1107,6 +1166,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "যেমন প্যারাসিটামল 500mg"
 },
   ta: {
+
     "Language": "மொழி",
     "Multilingual • Touch Friendly • Voice Intake": "பன்மொழி • தொடுதிரை • குரல் பதிவு",
     "Smart AI-Assisted": "ஸ்மார்ட் AI-உதவி",
@@ -1328,6 +1388,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "உதா. பாராசிட்டமால் 500mg"
 },
   te: {
+
     "Language": "భాష",
     "Multilingual • Touch Friendly • Voice Intake": "బహుభాషా • టచ్ ఫ్రెండ్లీ • వాయిస్ ఇన్‌టేక్",
     "Smart AI-Assisted": "స్మార్ట్ AI-సహాయక",
@@ -1549,6 +1610,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "ఉదా. పారాసెటమాల్ 500mg"
 },
   gu: {
+
     "Language": "ભાષા",
     "Multilingual • Touch Friendly • Voice Intake": "બહુભાષી • ટચ ફ્રેન્ડલી • વૉઇસ ઇન્ટેક",
     "Smart AI-Assisted": "સ્માર્ટ AI-આસિસ્ટેડ",
@@ -1770,6 +1832,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "દા.ત. પેરાસિટામોલ 500mg"
 },
   kn: {
+
     "Language": "ಭಾಷೆ",
     "Multilingual • Touch Friendly • Voice Intake": "ಬಹುಭಾಷಾ • ಟಚ್ ಸ್ನೇಹಿ • ಧ್ವನಿ ಇನ್ಟೇಕ್",
     "Smart AI-Assisted": "ಸ್ಮಾರ್ಟ್ ಎಐ-ನೆರವಿನ",
@@ -1991,6 +2054,7 @@ const translations: Translations = {
     "e.g. Paracetamol 500mg": "ಉದಾ. ಪ್ಯಾರಾಸಿಟಮಾಲ್ 500mg"
 },
   ml: {
+
     "Language": "ഭാഷ",
     "Multilingual • Touch Friendly • Voice Intake": "ബഹുഭാഷാ • ടച്ച് ഫ്രണ്ട്ലി • വോയ്‌സ് ഇൻടേക്ക്",
     "Smart AI-Assisted": "സ്മാർട്ട് AI-സഹాయത്തോടെയുള്ള",

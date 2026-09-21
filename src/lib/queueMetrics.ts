@@ -20,14 +20,28 @@ export interface QueueMetrics {
 }
 
 /**
+ * Parses numeric value from token string or number.
+ * e.g. '#012' -> 12, '12' -> 12, '#001' -> 1
+ */
+export function parseTokenNumber(rawToken?: string | number | null): number | null {
+  if (!rawToken) return null;
+  const str = String(rawToken).trim();
+  const match = str.match(/\d+/);
+  if (!match) return null;
+  const num = parseInt(match[0], 10);
+  return isNaN(num) || num <= 0 ? null : num;
+}
+
+/**
  * Normalizes any token string/number into the standardized clinic format: #001, #002, #005
  */
 export function formatTokenNumber(rawToken?: string | number | null): string {
   if (!rawToken) return '--';
-  const str = String(rawToken).trim();
-  const match = str.match(/\d+/);
-  if (!match) return str.startsWith('#') ? str : `#${str}`;
-  const num = parseInt(match[0], 10);
+  const num = parseTokenNumber(rawToken);
+  if (!num) {
+    const str = String(rawToken).trim();
+    return str.startsWith('#') ? str : `#${str}`;
+  }
   return `#${String(num).padStart(3, '0')}`;
 }
 
@@ -70,10 +84,12 @@ export function calculateConsultationTimeRange(
 /**
  * Calculates accurate real-time queue metrics:
  * - Filters strictly by CURRENT operating day (resets daily)
- * - Sorts by: In-progress consultation > Doctor review / Triage > Priority score > FIFO queueJoinedAt
- * - Sets currentServingToken to the patient currently in consultation (or top waiting patient)
- * - Calculates patientsAhead as actual count of active patients ahead in the queue
- * - Calculates estimatedWaitMinutes using remaining consultation time + 10m per waiting patient ahead
+ * - Identifies "Now Serving" strictly from the ACTUAL in-progress consultation (doctorStatus === 'in_progress')
+ * - If no consultation is in-progress, returns '--' instead of inventing a token
+ * - Calculates patientsAhead dynamically:
+ *     When servingToken active: max(0, patientToken - currentServingToken - 1)
+ *     When no consultation active: count of active sessions waiting ahead
+ * - Calculates estimatedWaitMinutes dynamically using actual consultation elapsed time + queue position
  */
 export function calculateQueueMetrics(
   sessions: PatientSession[],
@@ -83,12 +99,28 @@ export function calculateQueueMetrics(
   startOfDay.setHours(0, 0, 0, 0);
   const startOfDayMs = startOfDay.getTime();
 
-  // Filter out any completed sessions, and only include sessions from CURRENT operating day
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  const endOfDayMs = endOfDay.getTime();
+
+  // Filter out completed/inactive sessions, and strictly include valid sequential sessions from CURRENT day
   const activeSessions = sessions.filter(s => {
-    if (s.queueStatus === 'completed' || s.doctorStatus === 'completed') {
+    if (
+      s.queueStatus === 'completed' || 
+      s.doctorStatus === 'completed' ||
+      s.status === 'confirmed' ||
+      s.status === 'rejected'
+    ) {
       return false;
     }
-    // Check if session belongs to today
+
+    // Token must be a valid sequential token for clinic day (< 100 to filter legacy test artifacts)
+    const tokenNum = parseTokenNumber(s.queueTokenNumber);
+    if (!tokenNum || tokenNum > 100) {
+      return false;
+    }
+
+    // Verify session belongs to today
     let sessionTime = 0;
     if (s.queueJoinedAt) {
       sessionTime = typeof s.queueJoinedAt.toMillis === 'function'
@@ -99,31 +131,26 @@ export function calculateQueueMetrics(
         ? s.createdAt.toMillis()
         : (s.createdAt.seconds ? s.createdAt.seconds * 1000 : new Date(s.createdAt).getTime());
     }
-    // Only active sessions from today's clinic day
-    return sessionTime >= startOfDayMs;
+
+    return sessionTime >= startOfDayMs && sessionTime <= endOfDayMs;
   });
 
-  const statusWeight: Record<string, number> = {
-    doctor_review: 3,
-    triage: 2,
-    waiting: 1,
-  };
-
+  // Sort queue: in-progress first, then clinical priority, then sequential token number FIFO
   activeSessions.sort((a, b) => {
     // 1. Actively in-progress with doctor takes top spot
     const inProgA = a.doctorStatus === 'in_progress' ? 1 : 0;
     const inProgB = b.doctorStatus === 'in_progress' ? 1 : 0;
     if (inProgA !== inProgB) return inProgB - inProgA;
 
-    // 2. Queue Status (doctor_review > triage > waiting)
-    const weightA = statusWeight[a.queueStatus || 'waiting'] || 0;
-    const weightB = statusWeight[b.queueStatus || 'waiting'] || 0;
-    if (weightA !== weightB) return weightB - weightA;
-
-    // 3. Clinical Priority Score (emergency: 100 > high: 50 > normal: 0)
+    // 2. Clinical Priority Score (emergency: 100 > high: 50 > normal: 0)
     const scoreA = a.queuePriorityScore || 0;
     const scoreB = b.queuePriorityScore || 0;
     if (scoreA !== scoreB) return scoreB - scoreA;
+
+    // 3. Sequential Token Number
+    const numA = parseTokenNumber(a.queueTokenNumber) || 9999;
+    const numB = parseTokenNumber(b.queueTokenNumber) || 9999;
+    if (numA !== numB) return numA - numB;
 
     // 4. FIFO (queueJoinedAt)
     let timeA = Date.now();
@@ -148,37 +175,71 @@ export function calculateQueueMetrics(
     };
   }
 
-  const servingPatient = activeSessions[0];
-  const currentServingToken = formatTokenNumber(servingPatient.queueTokenNumber);
-  const currentServingSessionId = servingPatient.firestoreSessionId;
-  const currentServingStartedAt = servingPatient.consultationStartedAt;
+  // 1. Identify "Now Serving" from actual currently active/in-progress consultation for current queue/day
+  const inProgressSession = activeSessions.find(s => s.doctorStatus === 'in_progress');
+  const currentServingToken = inProgressSession?.queueTokenNumber 
+    ? formatTokenNumber(inProgressSession.queueTokenNumber) 
+    : '--';
+  const currentServingSessionId = inProgressSession?.firestoreSessionId;
+  const currentServingStartedAt = inProgressSession?.consultationStartedAt;
 
-  // Calculate remaining consultation time for currently serving patient
+  // 2. Calculate remaining consultation time for currently serving patient
   let remainingTimeForCurrent = avgMinutes;
-  let consultationTimeRange = calculateConsultationTimeRange(servingPatient.consultationStartedAt, avgMinutes);
+  const consultationTimeRange = calculateConsultationTimeRange(currentServingStartedAt, avgMinutes);
 
-  if (servingPatient.consultationStartedAt) {
-    const startMs = typeof servingPatient.consultationStartedAt.toMillis === 'function'
-      ? servingPatient.consultationStartedAt.toMillis()
-      : (servingPatient.consultationStartedAt.seconds
-        ? servingPatient.consultationStartedAt.seconds * 1000
-        : new Date(servingPatient.consultationStartedAt).getTime());
-    const elapsedMinutes = Math.max(0, (Date.now() - startMs) / 60000);
-    remainingTimeForCurrent = Math.max(0, Math.round(avgMinutes - elapsedMinutes));
+  if (currentServingStartedAt) {
+    const startMs = typeof currentServingStartedAt.toMillis === 'function'
+      ? currentServingStartedAt.toMillis()
+      : (currentServingStartedAt.seconds
+        ? currentServingStartedAt.seconds * 1000
+        : new Date(currentServingStartedAt).getTime());
+    if (!isNaN(startMs) && startMs > 0) {
+      const elapsedMinutes = Math.max(0, (Date.now() - startMs) / 60000);
+      remainingTimeForCurrent = Math.max(0, Math.round(avgMinutes - elapsedMinutes));
+    }
   }
 
-  const activeQueue: QueuePatient[] = activeSessions.map((session, index) => {
-    const queuePosition = index + 1;
-    const patientsAhead = index; // 0 for currently serving, 1 for next in line, etc.
-    const normalizedToken = formatTokenNumber(session.queueTokenNumber);
+  const servingNum = parseTokenNumber(currentServingToken);
 
-    let estimatedWaitMinutes = 0;
-    if (patientsAhead > 0) {
-      // Remaining time for current consultation + 10m for each waiting patient ahead
-      estimatedWaitMinutes = remainingTimeForCurrent + (patientsAhead - 1) * avgMinutes;
+  const activeQueue: QueuePatient[] = activeSessions.map((session, index) => {
+    const normalizedToken = formatTokenNumber(session.queueTokenNumber);
+    const patientNum = parseTokenNumber(session.queueTokenNumber);
+
+    // 3. Calculate Patients Ahead dynamically
+    let patientsAhead = 0;
+    if (patientNum) {
+      if (servingNum) {
+        // Normal sequential FIFO queue formula: max(0, patientToken - currentServingToken - 1)
+        if (patientNum === servingNum) {
+          patientsAhead = 0;
+        } else if (patientNum > servingNum) {
+          patientsAhead = Math.max(0, patientNum - servingNum - 1);
+        } else {
+          patientsAhead = 0;
+        }
+      } else {
+        // When no consultation is actively serving, count active waiting patients ahead in queue
+        const waitingAhead = activeSessions.filter(s => {
+          const otherNum = parseTokenNumber(s.queueTokenNumber);
+          return otherNum && otherNum < patientNum;
+        });
+        patientsAhead = waitingAhead.length;
+      }
     }
 
+    // 4. Calculate Estimated Wait Minutes dynamically
+    let estimatedWaitMinutes = 0;
+    if (patientsAhead > 0) {
+      if (servingNum) {
+        estimatedWaitMinutes = remainingTimeForCurrent + (patientsAhead - 1) * avgMinutes;
+      } else {
+        estimatedWaitMinutes = patientsAhead * avgMinutes;
+      }
+    }
+
+    // 5. Calculate Expected Turn Time dynamically
     const expectedTurnTimeStr = calculateExpectedTurnTime(estimatedWaitMinutes);
+    const queuePosition = patientsAhead + 1;
 
     return {
       ...session,
@@ -188,8 +249,12 @@ export function calculateQueueMetrics(
       estimatedWaitMinutes,
       currentServingToken,
       expectedTurnTimeStr,
-      consultationStartedAtStr: consultationTimeRange?.startedStr,
-      expectedFinishTimeStr: consultationTimeRange?.expectedFinishStr,
+      consultationStartedAtStr: inProgressSession?.firestoreSessionId === session.firestoreSessionId
+        ? consultationTimeRange?.startedStr 
+        : undefined,
+      expectedFinishTimeStr: inProgressSession?.firestoreSessionId === session.firestoreSessionId
+        ? consultationTimeRange?.expectedFinishStr 
+        : undefined,
     };
   });
 

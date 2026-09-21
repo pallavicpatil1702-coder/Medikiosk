@@ -92,7 +92,7 @@ export default function ComplaintPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Chief Complaint" backHref="/patient/profile" />
+      <Header title={t('Chief Complaint')} backHref="/patient/profile" />
       <div className="max-w-4xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={6} total={13} />
         <div className="text-center mb-10">

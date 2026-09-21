@@ -135,7 +135,7 @@ export default function ReportsPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Previous Medical Reports" backHref="/patient/history" />
+      <Header title={t('Previous Medical Reports')} backHref="/patient/history" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={11} total={13} />
         <div className="text-center mb-10">
@@ -213,7 +213,7 @@ export default function ReportsPage() {
             </div>
             <div>
               <div className="font-bold text-[#1b3d27]">{t('Uploading report...')}</div>
-              <div className="text-xs text-[#556358]">Saving securely to your intake profile</div>
+              <div className="text-xs text-[#556358]">{t('Saving securely to your intake profile')}</div>
             </div>
           </div>
         )}

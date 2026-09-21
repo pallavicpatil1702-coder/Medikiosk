@@ -50,39 +50,80 @@ export async function POST(req: Request) {
       return NextResponse.json({ summary: sessionData.structuredPhysicianSummary });
     }
 
-    // Build the payload for the LLM with English question lookups and normalized texts
+    const targetLang = sessionData.language || sessionData.patient?.language || 'en';
+    const langNames: Record<string, string> = {
+      en: 'English',
+      hi: 'Hindi',
+      mr: 'Marathi',
+      bn: 'Bengali',
+      te: 'Telugu',
+      ta: 'Tamil',
+      gu: 'Gujarati',
+      kn: 'Kannada',
+      ml: 'Malayalam'
+    };
+    const targetLangName = langNames[targetLang] || 'English';
+
+    // Build the payload for the LLM
     const payloadForAI = {
+      targetLanguage: targetLangName,
+      languageCode: targetLang,
       chiefComplaint: sessionData.chiefComplaint ? (normalizePhraseToEnglish(sessionData.chiefComplaint) || sessionData.chiefComplaint) : 'Not reported',
-      answers: (sessionData.answers || []).map(a => `${getEnglishQuestionText(a.questionId) || a.questionText || a.questionId}: ${a.normalizedEnglishText || a.answer}`),
-      knownFacts: (sessionData.knownFacts || []).map(f => `${getEnglishQuestionText(f.questionId) || f.questionId}: ${f.normalizedEnglishText || f.answer}`),
+      originalChiefComplaint: sessionData.originalChiefComplaint || sessionData.chiefComplaint || 'Not reported',
+      answers: (sessionData.answers || []).map(a => `${getEnglishQuestionText(a.questionId) || a.questionText || a.questionId}: ${a.answer} (Normalized: ${a.normalizedEnglishText || a.answer})`),
+      knownFacts: (sessionData.knownFacts || []).map(f => `${getEnglishQuestionText(f.questionId) || f.questionId}: ${f.answer}`),
       bodyLocations: (sessionData.bodyLocations || []).map(l => `${l.name} (${l.view} ${l.side || ''})`),
       redFlags: (sessionData.redFlags || []).map(r => `${r.type}: ${r.description}`),
       extractedData: sessionData.extractedData || 'None',
     };
 
-    console.log(`[API/PhysicianSummary] Generating summary for session ${sessionId}...`);
+    console.log(`[API/PhysicianSummary] Generating summary for session ${sessionId} in ${targetLangName}...`);
 
-    const prompt = `You are an expert physician reviewing patient intake data. Your job is to convert the raw patient intake data (often in regional Indian languages like Hindi or Marathi) into a concise, highly structured, strictly English clinical handoff summary formatted as bullet points.
+    const prompt = `You are an expert clinical AI analyzing patient intake data.
+The patient chose ${targetLangName} (${targetLang}) as their consultation language.
 
-PURPOSE: INFORMATION COMPRESSION
-The goal is to synthesize the entire intake into a scannable bulleted list that communicates the important facts in 5-10 seconds.
+YOUR TASKS:
+1. "patientSummary": Generate a clear, compassionate, and structured summary of the patient's condition WRITTEN ENTIRELY IN ${targetLangName}.
+   - If Hindi, use natural, clean Hindi in Devanagari script.
+   - If Marathi, use natural, clean Marathi in Devanagari script.
+   - If English, use natural English.
+   - Summarize the patient's chief complaint, duration, affected areas, and answers clearly for the patient to read.
+
+2. "informationSentToDoctor": A patient-generated summary of the information transmitted to the healthcare professional, WRITTEN IN ${targetLangName}.
+   - If Hindi, write in Hindi in Devanagari script.
+   - If Marathi, write in Marathi in Devanagari script.
+   - If English, write in English.
+
+3. "clinicalHandoff": Convert the intake data into a concise, highly structured, strictly English clinical handoff summary formatted as bullet points for the attending physician.
+   - MUST be in English for clinical safety.
+   - Synthesize the intake into a scannable bulleted list communicating facts in 5-10 seconds.
+   - Format:
+     • Patient: [age/gender if available]
+     • Chief Complaint: [complaint in English]
+     • Duration / Onset: [information]
+     • Affected Area: [Body Map location if available]
+     • Key Symptoms: [important positive findings]
+     • Relevant Negative Findings: [explicitly denied symptoms only]
+     • Relevant History: [reported information]
+     • Medications: [reported/extracted medicines]
+     • Reports / Investigations: [actual OCR/report info]
+     • Red Flags: [deterministic red flags]
+     • Missing / Unknown: [clinically relevant missing info]
 
 RULES:
-1. MUST ALWAYS be 100% English. Translate any Hindi/Marathi/etc. into accurate English medical meaning.
-2. Example: "pata nahi", "mahiti nahi", "don't know" -> "Unknown" or "Not reported". NEVER convert to "No". "No" must only be used when explicitly denied.
-3. Do NOT generate a paragraph. Do NOT create a question-answer transcript. Keep bullets short and clinically meaningful.
-4. Combine related answers into one bullet. Do NOT repeat the same information in multiple bullets.
-5. Do NOT invent information. Do NOT diagnose or prescribe. Do NOT infer disease, severity, cause, treatment, prognosis, or missing symptoms.
-6. Use only facts actually provided. Use Body Map locations only from bodyLocations. Use OCR only from extractedData. Use red flags only from the provided deterministic redFlags list.
-7. Omit empty/unimportant sections rather than filling the screen with "Not reported". Use "Not reported" or "Unknown" only when clinically relevant.
-8. Output MUST be a valid JSON object matching the exact key requested. Do NOT output markdown formatting outside the JSON object.
+1. "patientSummary" and "informationSentToDoctor" MUST BE IN ${targetLangName} (${targetLang}). Do NOT return them in English if ${targetLangName} is not English!
+2. "clinicalHandoff" MUST BE IN English.
+3. Do NOT invent diagnoses or prescriptions. Use only facts actually provided.
+4. Output MUST be a valid JSON object matching the exact format below.
 
 INPUT DATA:
 ${JSON.stringify(payloadForAI, null, 2)}
 
 OUTPUT JSON FORMAT REQUIRED:
 {
-  "clinicalHandoff": "• Patient: [age/gender if actually available]\\n• Chief Complaint: [actual complaint]\\n• Duration / Onset: [actual information]\\n• Affected Area: [actual Body Map location, if available]\\n• Key Symptoms: [important positive findings]\\n• Relevant Negative Findings: [important explicitly denied symptoms only]\\n• Relevant History: [only reported information]\\n• Medications: [only reported/extracted information]\\n• Reports / Investigations: [only actual OCR/report information]\\n• Red Flags: [only deterministic red flags]\\n• Missing / Unknown: [only clinically relevant missing information]"
+  "clinicalHandoff": "• Patient: ...\\n• Chief Complaint: ...",
+  "patientSummary": "• ... [written in ${targetLangName}]",
+  "informationSentToDoctor": "• ... [written in ${targetLangName}]"
 }
 `;
 
@@ -99,14 +140,18 @@ OUTPUT JSON FORMAT REQUIRED:
     }
 
     const structuredSummary: StructuredPhysicianSummary = JSON.parse(aiContent);
+    structuredSummary.language = targetLang;
 
     // Save to Firestore
     await sessionRef.update({
       structuredPhysicianSummary: structuredSummary,
+      patientSummary: structuredSummary.patientSummary || structuredSummary.clinicalHandoff,
+      informationSentToDoctor: structuredSummary.informationSentToDoctor || structuredSummary.patientSummary,
+      language: targetLang,
       physicianSummaryStatus: 'generated'
     });
 
-    console.log(`[API/PhysicianSummary] Successfully generated summary for session ${sessionId}`);
+    console.log(`[API/PhysicianSummary] Successfully generated summary for session ${sessionId} in ${targetLangName}`);
 
     return NextResponse.json({ summary: structuredSummary });
 

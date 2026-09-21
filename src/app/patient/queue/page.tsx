@@ -9,6 +9,7 @@ import { useTranslation } from '@/lib/i18n';
 import { getSession, clearSession } from '@/lib/store/store';
 import { usePatientQueuePolling } from '@/hooks/usePatientQueuePolling';
 import { useAuth } from '@/context/AuthContext';
+import { DEFAULT_CONSULTATION_MINUTES } from '@/lib/queueMetrics';
 
 export default function QueuePage() {
   const { t } = useTranslation();
@@ -80,16 +81,18 @@ export default function QueuePage() {
     firestoreSessionId
   } = patientQueueInfo;
 
-  const displayToken = queueTokenNumber || `#${(firestoreSessionId || 'TKN').substring(0, 4).toUpperCase()}`;
+  const displayToken = queueTokenNumber || '--';
   const patientsAhead = patientQueueInfo.patientsAhead !== undefined
     ? patientQueueInfo.patientsAhead
     : Math.max(0, queuePosition - 1);
 
   // When patientsAhead is 0, or doctor review is active, it is the patient's turn
   const isYourTurn = patientsAhead === 0 || queueStatus === 'doctor_review' || patientQueueInfo.doctorStatus === 'in_progress';
-  const displayServingToken = isYourTurn ? displayToken : (currentServingToken || '--');
-  const displayWait = isYourTurn ? '0 min' : `~${estimatedWaitMinutes} min`;
-  const displayStatusText = isYourTurn ? 'YOUR TURN' : (queueStatus === 'triage' ? 'In Triage' : 'Waiting');
+  const displayServingToken = currentServingToken || '--';
+  const displayWait = (isYourTurn || patientsAhead === 0) ? '0 min' : `~${estimatedWaitMinutes} min`;
+  const displayStatusText = patientQueueInfo.doctorStatus === 'in_progress'
+    ? 'In Progress'
+    : (isYourTurn ? 'YOUR TURN' : (queueStatus === 'triage' ? 'In Triage' : 'Waiting'));
 
   return (
     <AyurvedaBackground variant="kiosk">
@@ -196,7 +199,7 @@ export default function QueuePage() {
                   {displayWait}
                 </div>
                 <div className="text-xs text-[#0284c7] font-medium">
-                  {isYourTurn ? t('Ready for consultation') : t('Calculated at ~10 min / patient')}
+                  {isYourTurn ? t('Ready for consultation') : `${t('Dynamic timing')} (~${DEFAULT_CONSULTATION_MINUTES}m / ${t('patient')})`}
                 </div>
               </div>
 
@@ -221,7 +224,7 @@ export default function QueuePage() {
                 <div>
                   <h4 className="text-xs font-bold text-[#64748b] uppercase tracking-wider mb-1">{t('Queue Status')}</h4>
                   <div className={`text-2xl font-black ${isYourTurn ? 'text-[#166534]' : 'text-[#0f172a]'}`}>
-                    {displayStatusText}
+                    {t(displayStatusText)}
                   </div>
                   <p className="text-xs text-[#64748b] mt-0.5">
                     {isYourTurn 

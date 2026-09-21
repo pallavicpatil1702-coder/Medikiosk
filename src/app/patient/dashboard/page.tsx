@@ -262,9 +262,9 @@ function PatientDashboardContent() {
             patientQueueInfo?.queueStatus === 'doctor_review' ||
             patientQueueInfo?.doctorStatus === 'in_progress'
           );
-          const displayServingToken = isYourTurn ? displayToken : (patientQueueInfo?.currentServingToken || '--');
-          const displayWait = isYourTurn ? '0 min' : `~${patientQueueInfo?.estimatedWaitMinutes ?? 0} min`;
-          const expectedTurnStr = isYourTurn ? 'NOW' : (patientQueueInfo?.expectedTurnTimeStr || 'Calculating...');
+          const displayServingToken = patientQueueInfo?.currentServingToken || '--';
+          const displayWait = (isYourTurn || patientsAhead === 0) ? '0 min' : `~${patientQueueInfo?.estimatedWaitMinutes ?? 0} min`;
+          const expectedTurnStr = (isYourTurn || patientsAhead === 0) ? 'NOW' : (patientQueueInfo?.expectedTurnTimeStr || 'Calculating...');
 
           return (
             <>

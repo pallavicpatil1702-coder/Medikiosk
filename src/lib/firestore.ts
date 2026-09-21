@@ -151,20 +151,30 @@ export const syncSessionToFirestore = async (
       // Only set queueJoinedAt and queueTokenNumber if not already assigned
       if (!session.queueJoinedAt) {
         queueFields.queueJoinedAt = serverTimestamp();
+      } else {
+        queueFields.queueJoinedAt = session.queueJoinedAt;
       }
-      if (!session.queueTokenNumber) {
+
+      if (session.queueTokenNumber) {
+        queueFields.queueTokenNumber = session.queueTokenNumber;
+      } else {
         try {
           // Fetch sequential token from secure server API respecting current clinic operating day
           if (typeof window !== 'undefined') {
             const res = await fetch('/api/patient/assign-token', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ patientId })
+              body: JSON.stringify({
+                patientId,
+                sessionId: session.firestoreSessionId
+              })
             });
             if (res.ok) {
               const data = await res.json();
               if (data?.token) {
                 queueFields.queueTokenNumber = data.token;
+                session.queueTokenNumber = data.token;
+                updateLocalSession({ queueTokenNumber: data.token });
               }
             }
           }
@@ -175,6 +185,8 @@ export const syncSessionToFirestore = async (
         if (!queueFields.queueTokenNumber) {
           // Fallback start of day token
           queueFields.queueTokenNumber = '#001';
+          session.queueTokenNumber = '#001';
+          updateLocalSession({ queueTokenNumber: '#001' });
         }
       }
     }
@@ -183,10 +195,11 @@ export const syncSessionToFirestore = async (
       try {
         // Update existing session document
         const sessionRef = doc(db, 'patientSessions', session.firestoreSessionId);
+        const sessionLanguage = session.language || session.patient?.language || 'en';
         await updateDoc(sessionRef, {
           patientId,
           patient: safeData(session.patient),
-          language: session.patient?.language || 'en',
+          language: sessionLanguage,
           chiefComplaint: session.chiefComplaint || '',
           originalChiefComplaint: session.originalChiefComplaint || '',
           answers: safeData(session.answers || []),
@@ -194,12 +207,14 @@ export const syncSessionToFirestore = async (
           extractedData: safeData(session.extractedData),
           redFlags: safeData(session.redFlags || []),
           summary: safeData(session.clinicalSummary),
+          patientSummary: session.patientSummary || null,
+          informationSentToDoctor: session.informationSentToDoctor || null,
           consent: safeData(session.consent),
           status: status === 'completed' ? 'pending_review' : status,
           updatedAt: serverTimestamp(),
           ...queueFields
         });
-        updateLocalSession({ syncStatus: 'synced' });
+        updateLocalSession({ syncStatus: 'synced', ...queueFields });
         console.log('[Session Sync] write success = true (Updated session: ' + session.firestoreSessionId + ')');
         return { success: true };
       } catch (updateErr: any) {
@@ -216,10 +231,11 @@ export const syncSessionToFirestore = async (
 
     // Create new session document
     const sessionsRef = collection(db, 'patientSessions');
+    const sessionLanguage = session.language || session.patient?.language || 'en';
     const docRef = await addDoc(sessionsRef, {
       patientId,
       patient: safeData(session.patient),
-      language: session.patient?.language || 'en',
+      language: sessionLanguage,
       chiefComplaint: session.chiefComplaint || '',
       originalChiefComplaint: session.originalChiefComplaint || '',
       answers: safeData(session.answers || []),
@@ -227,6 +243,8 @@ export const syncSessionToFirestore = async (
       extractedData: safeData(session.extractedData),
       redFlags: safeData(session.redFlags || []),
       summary: safeData(session.clinicalSummary),
+      patientSummary: session.patientSummary || null,
+      informationSentToDoctor: session.informationSentToDoctor || null,
       consent: safeData(session.consent),
       status: status === 'completed' ? 'pending_review' : status,
       triageStatus: 'pending_review',

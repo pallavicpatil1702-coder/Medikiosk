@@ -6,7 +6,7 @@ import AyurvedaBackground from '@/components/AyurvedaBackground';
 import { ScanLine, Keyboard, UserPlus, Check, Loader2, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateSession } from '@/lib/store/store';
+import { updateSession, getSession, loadFromStore, STORAGE_KEYS } from '@/lib/store/store';
 import { Patient } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n';
 import { useSync } from '@/hooks/useSync';
@@ -87,6 +87,9 @@ export default function IdentifyPage() {
         }
       }
 
+      const activeSession = getSession();
+      const currentLang = activeSession.patient?.language || activeSession.language || loadFromStore<string>(STORAGE_KEYS.language) || 'en';
+
       const p: Patient = {
         id: patientId,
         abhaId: cleanAbha || patientData.abhaId,
@@ -95,10 +98,11 @@ export default function IdentifyPage() {
         gender: (patientData.gender as any) || 'Male',
         contact: patientData.contact || '',
         email: patientData.email || activeUser?.email || undefined,
+        language: currentLang,
         createdAt: new Date().toISOString()
       };
 
-      updateSession({ patient: p });
+      updateSession({ patient: p, language: currentLang });
       router.push('/patient/consent');
     } catch (err) {
       console.error('Error during identification:', err);
@@ -118,7 +122,7 @@ export default function IdentifyPage() {
 
   return (
     <AyurvedaBackground variant="kiosk">
-      <Header title="Identify Yourself" backHref="/patient/language" />
+      <Header title={t('Identify Yourself')} backHref="/patient/language" />
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
         <ProgressBar current={3} total={13} />
         <div className="text-center mb-10">

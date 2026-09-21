@@ -103,6 +103,9 @@ export interface RedFlag {
 
 export interface StructuredPhysicianSummary {
   clinicalHandoff: string;
+  patientSummary?: string;
+  informationSentToDoctor?: string;
+  language?: string;
   // Legacy fields for backward compatibility with old sessions
   chiefComplaint?: string;
   durationOnset?: string;
@@ -198,6 +201,8 @@ export interface PatientSession {
   medicationSafetyAlerts?: MedicationSafetyAlert[];
   clinicalSummary?: ClinicalSummary;
   structuredPhysicianSummary?: StructuredPhysicianSummary;
+  patientSummary?: string;
+  informationSentToDoctor?: string;
   physicianSummaryStatus?: 'pending' | 'generated' | 'failed';
 
   doctorReview?: DoctorReview;
