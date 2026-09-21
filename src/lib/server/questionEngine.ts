@@ -204,7 +204,18 @@ function deterministicTraverse(activeModules: string[], completedModules: string
           const keyLower = key.toLowerCase();
           // Match exactly, or if it's a multi-word answer, check if it contains the key as a discrete word
           const regex = new RegExp(`\\b${keyLower}\\b`, 'i');
-          if (ansNormalized === keyLower || regex.test(ansNormalized)) {
+          const isAffirmative = keyLower === 'yes' && (
+            ansNormalized === 'yes' || ansNormalized === 'haan' || ansNormalized === 'हाँ' || 
+            ansNormalized === 'होय' || ansNormalized === 'hoy' || ansNormalized === 'true' ||
+            /\b(yes|haan|hoy)\b/i.test(ansNormalized)
+          );
+          const isNegative = keyLower === 'no' && (
+            ansNormalized === 'no' || ansNormalized === 'nahin' || ansNormalized === 'नहीं' || 
+            ansNormalized === 'नाही' || ansNormalized === 'nahi' || ansNormalized === 'false' ||
+            /\b(no|nahin|nahi)\b/i.test(ansNormalized)
+          );
+
+          if (ansNormalized === keyLower || regex.test(ansNormalized) || isAffirmative || isNegative) {
             console.log(`[QuestionEngine] Branch matched '${key}', next question: ${nextQ}`);
             currentQuestionId = nextQ as string;
             branched = true;
@@ -230,9 +241,16 @@ function deterministicTraverse(activeModules: string[], completedModules: string
         text: qDef.text,
         type: qDef.type,
         options: qDef.options,
+        choices: qDef.choices,
+        answerOption: qDef.answerOption,
         branch: qDef.branch,
         next: qDef.next,
-        red_flag: qDef.red_flag
+        red_flag: qDef.red_flag,
+        example: qDef.example,
+        min: qDef.min,
+        max: qDef.max,
+        step: qDef.step,
+        required: qDef.required,
       };
       
       console.log('[QuestionEngine] selected next question:', formattedQuestion.id);

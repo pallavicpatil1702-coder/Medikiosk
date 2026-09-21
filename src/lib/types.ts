@@ -22,6 +22,7 @@ export interface Answer {
   questionText?: string;
   language?: string;
   answer: string;
+  selectedChoices?: string[];
   inputMethod?: 'text' | 'voice' | 'body_map';
   timestamp?: string;
   originalTranscript?: string;
@@ -35,12 +36,18 @@ export interface Question {
   category?: string;
   dependsOn?: { qId: string; value: string };
   type: string;
-  options?: string[];
-  choices?: string[];
+  options?: any[];
+  choices?: any[];
+  answerOption?: any[];
   branch?: Record<string, string>;
   next?: string;
   red_flag?: boolean;
   example?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  required?: boolean;
+  [key: string]: any;
 }
 
 export interface ClinicalHistory {
