@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import ProgressBar from '@/components/ProgressBar';
 import AyurvedaBackground from '@/components/AyurvedaBackground';
-import { Upload, ScanLine, FileText, Check, FileImage, SkipForward, UploadCloud, Trash2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Upload, ScanLine, FileText, Check, FileImage, SkipForward, UploadCloud, Trash2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, updateSession } from '@/lib/store/store';
@@ -19,6 +19,9 @@ export default function ReportsPage() {
   const [uploaded, setUploaded] = useState<MedicalDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [failedFile, setFailedFile] = useState<File | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -39,24 +42,27 @@ export default function ReportsPage() {
     router.push('/patient/extraction');
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processFileUpload = async (file: File, forceLocalStorage: boolean = false) => {
     if (!file) return;
 
     setErrorMsg(null);
+    setFailedFile(null);
     setUploading(true);
+    setUploadProgress(0);
 
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
-      setErrorMsg('Invalid file type. Please upload a PDF, JPG, or PNG.');
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setErrorMsg('Invalid file type. Please upload a PDF, JPG, or PNG document.');
       setUploading(false);
+      setUploadProgress(null);
       return;
     }
 
-    const MAX_SIZE = 2 * 1024 * 1024;
+    const MAX_SIZE = 4 * 1024 * 1024; // 4MB
     if (file.size > MAX_SIZE) {
-      setErrorMsg('File too large (max 2MB).');
+      setErrorMsg('File too large (max 4MB). Please select a smaller document or photo.');
       setUploading(false);
+      setUploadProgress(null);
       return;
     }
 
@@ -72,44 +78,94 @@ export default function ReportsPage() {
         uploadedAt: new Date().toISOString(),
       };
 
-      if (currentUser && currentUser.uid) {
-        console.log('[Storage] upload started');
+      let uploadSuccess = false;
+
+      // Authenticated flow: Upload to Firebase Storage
+      if (currentUser && currentUser.uid && !forceLocalStorage) {
+        console.log('[Storage] upload started for file:', file.name);
         const session = getSession();
         const sessionId = session?.firestoreSessionId || 'pending';
         
         try {
-          const { storagePath, downloadUrl } = await uploadMedicalReport(currentUser.uid, sessionId, file);
+          const { storagePath, downloadUrl } = await uploadMedicalReport(
+            currentUser.uid,
+            sessionId,
+            file,
+            (progress) => setUploadProgress(progress)
+          );
           newDoc.storagePath = storagePath;
           newDoc.downloadUrl = downloadUrl;
+          uploadSuccess = true;
         } catch (uploadErr: any) {
-          console.error('[Storage] upload failed:', uploadErr.code, uploadErr.message);
-          throw uploadErr;
+          console.warn('[Storage] Firebase storage upload encountered error:', uploadErr?.code, uploadErr?.message);
+          // If storage upload fails (network, permission, or offline), capture the failed file for retry
+          // If the file is small enough, we can also fall back to dataUrl so the kiosk is not blocked
+          if (file.size <= 2 * 1024 * 1024) {
+            console.log('[Storage] Falling back to local dataUrl for kiosk session resilience');
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (event) => resolve(event.target?.result as string);
+              reader.onerror = () => reject(new Error('Failed to read file locally'));
+              reader.readAsDataURL(file);
+            });
+            newDoc.dataUrl = dataUrl;
+            uploadSuccess = true;
+          } else {
+            setFailedFile(file);
+            throw uploadErr;
+          }
         }
       } else {
+        // Local / unauthenticated demo flow: DataURL
+        setUploadProgress(40);
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (event) => resolve(event.target?.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onerror = () => reject(new Error('Failed to read file locally'));
           reader.readAsDataURL(file);
         });
+        setUploadProgress(80);
         newDoc.dataUrl = dataUrl;
+        uploadSuccess = true;
       }
 
-      const updatedDocs = [...uploaded, newDoc];
-      updateSession({ documents: updatedDocs });
-      setUploaded(updatedDocs);
-      sync();
+      if (uploadSuccess) {
+        setUploadProgress(100);
+        const updatedDocs = [...uploaded, newDoc];
+        updateSession({ documents: updatedDocs });
+        setUploaded(updatedDocs);
+        sync();
+      }
     } catch (err: any) {
       console.error("Upload error:", err);
+      setFailedFile(file);
       if (err.name === 'QuotaExceededError' || err?.message?.includes('quota')) {
-        setErrorMsg('Storage limit reached. Please remove an existing report before uploading another.');
+        setErrorMsg('Browser storage limit reached. Please remove an existing report before adding another.');
+      } else if (err?.message?.includes('timed out')) {
+        setErrorMsg(err.message);
+      } else if (err?.code === 'storage/unauthorized' || err?.code === 'storage/permission-denied') {
+        setErrorMsg('Upload permission denied by storage policy. Please retry or contact staff.');
       } else {
-        setErrorMsg('An unexpected error occurred while saving.');
+        setErrorMsg('Failed to upload report. Please check your network and retry.');
       }
     } finally {
       setUploading(false);
+      setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFileUpload(file);
+    }
+  };
+
+  const handleRetryUpload = () => {
+    if (failedFile) {
+      processFileUpload(failedFile);
     }
   };
 
@@ -144,9 +200,28 @@ export default function ReportsPage() {
         </div>
 
         {errorMsg && (
-          <div className="rounded-2xl bg-[#fff5f5] border border-[#b83b3b]/30 p-4 mb-6 flex items-start gap-3">
-            <AlertCircle className="text-[#b83b3b] shrink-0 mt-0.5" size={20} />
-            <p className="text-[#8a1f1f] font-bold text-sm">{t(errorMsg)}</p>
+          <div className="rounded-2xl bg-[#fff5f5] border border-[#b83b3b]/30 p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-[#b83b3b] shrink-0 mt-0.5" size={20} />
+              <div>
+                <p className="text-[#8a1f1f] font-bold text-sm">{t(errorMsg)}</p>
+                {failedFile && (
+                  <p className="text-xs text-[#8a1f1f]/80 mt-0.5">{failedFile.name} ({(failedFile.size / (1024 * 1024)).toFixed(2)} MB)</p>
+                )}
+              </div>
+            </div>
+            {failedFile && (
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                <button
+                  onClick={handleRetryUpload}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#b83b3b] hover:bg-[#962e2e] text-white text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw size={14} className={uploading ? 'animate-spin' : ''} />
+                  <span>{t('Retry')}</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -155,7 +230,7 @@ export default function ReportsPage() {
           <div className="grid sm:grid-cols-2 gap-5 mb-8">
             <input 
               type="file" 
-              accept=".pdf,image/jpeg,image/png,image/jpg" 
+              accept=".pdf,image/jpeg,image/png,image/jpg,image/webp" 
               className="hidden" 
               ref={fileInputRef} 
               onChange={handleFileSelect} 
@@ -171,7 +246,7 @@ export default function ReportsPage() {
               <div className="font-bold text-[#1c241e] text-base group-hover:text-[#1b3d27]">
                 {uploading ? t('Uploading report...') : t('Upload Report')}
               </div>
-              <span className="text-xs text-[#829277]">PDF, JPG, PNG (Max 2MB)</span>
+              <span className="text-xs text-[#829277]">PDF, JPG, PNG (Max 4MB)</span>
             </button>
             
             <input 
@@ -207,14 +282,31 @@ export default function ReportsPage() {
         </div>
 
         {uploading && (
-          <div className="rounded-3xl bg-[#e4ede1]/80 border border-[#c7d9c2] p-5 mb-8 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-[#234e32] text-white flex items-center justify-center animate-pulse-soft">
-              <Upload size={18} />
+          <div className="rounded-3xl bg-[#e4ede1]/80 border border-[#c7d9c2] p-5 mb-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#234e32] text-white flex items-center justify-center animate-pulse-soft shrink-0">
+                <Upload size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-[#1b3d27] text-sm sm:text-base">{t('Uploading report...')}</div>
+                  {uploadProgress !== null && (
+                    <span className="text-xs font-bold text-[#234e32] bg-white/80 px-2 py-0.5 rounded-md border border-[#c7d9c2]">
+                      {uploadProgress}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-[#556358]">{t('Saving securely to your intake profile')}</div>
+              </div>
             </div>
-            <div>
-              <div className="font-bold text-[#1b3d27]">{t('Uploading report...')}</div>
-              <div className="text-xs text-[#556358]">{t('Saving securely to your intake profile')}</div>
-            </div>
+            {uploadProgress !== null && (
+              <div className="w-full bg-[#c7d9c2]/50 rounded-full h-2 overflow-hidden mt-2">
+                <div 
+                  className="bg-[#234e32] h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${Math.max(5, uploadProgress)}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
